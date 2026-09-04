@@ -1,0 +1,17 @@
+[Desktop Entry]
+Comment[en_US]=Desktop Entry
+Comment=Desktop Entry
+Exec=/home/leonardowhite/Documents/Personal/AES/AES
+GenericName[en_US]=AES
+GenericName=AES
+Icon=/home/leonardowhite/Documents/Personal/AES/data/icon.png
+MimeType=
+Name[en_US]=Aeronautical Engineering Simulator
+Name=Aeronautical Engineering Simulator
+Path=
+StartupNotify=true
+Terminal=false
+TerminalOptions=
+Type=Application
+X-KDE-SubstituteUID=false
+X-KDE-Username=
