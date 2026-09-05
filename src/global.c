@@ -38,6 +38,7 @@ vec3f p2c = {-2,4,1};
 bool blue_overlap;
 static bool touch_button[32];
 static float touch_analog[6];
+static int32 touch_digital[8];
 
 // world
 SDL_Thread *physics_thread;

@@ -112,6 +112,25 @@ bool coords_in_rectf(float x, float y, float rect[4]) { // rect[4] = {x,y,w,h};
 }
 
 void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last_tps, uint16 window_width, uint16 window_height) {
+    if (touch_analog[2] <= 0) {
+        touch_analog[2] = 1;
+    }
+    if (touch_button[10] == true) {
+        touch_analog[2] = 1;
+    }
+    if (touch_button[9] == true) {
+        touch_analog[2] = 2;
+    }
+    if (touch_button[8] == true) {
+        touch_analog[2] = 3;
+    }
+    float gui_render_scale = touch_analog[2];
+    SDL_SetRenderScale(root_gui_renderer, gui_render_scale, gui_render_scale);
+    uint16 actual_width = window_width;
+    uint16 actual_height = window_width;
+    window_width = window_width / touch_analog[2];
+    window_height = window_height / touch_analog[2];
+
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 0);
     SDL_RenderClear(root_gui_renderer);
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 31);
@@ -154,6 +173,12 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
     }
     //SDL_Log("x%.3f y%.3f", touch_analog[0], touch_analog[1]);
     SDL_RenderFillRects(root_gui_renderer, rects_f, sizeof(rects_f)/sizeof(rects_f[0]));
+    for (int i = 0; i < 5; i++) {
+        SDL_FRect rect9 = {window_width - 32 - 64 * i - 32, 32, 32, 32};
+        float rect9t[] = {rect9.x, rect9.y, rect9.w, rect9.h};
+        touch_button[8+i] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect9t));
+        SDL_RenderFillRect(root_gui_renderer, &rect9);
+    }
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 63);
     SDL_FRect rect8 = {window_width - 128 - 48 + 64*(touch_analog[0]+1), window_height - 128 - 48 + 64*(touch_analog[1]+1), 32, 32};
     SDL_RenderFillRect(root_gui_renderer, &rect8);
@@ -173,6 +198,9 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 122, "%" SDL_PRIs32, (int) last_tps);
 
     SDL_RenderPresent(root_gui_renderer); // put it all on the screen!
+
+    window_width = actual_width;
+    window_width = actual_height;
 }
 
 #endif
