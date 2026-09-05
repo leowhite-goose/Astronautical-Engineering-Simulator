@@ -115,13 +115,13 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
     if (touch_analog[2] <= 0) {
         touch_analog[2] = 1;
     }
-    if (touch_button[10] == true) {
+    if (touch_button[8] == true) {
         touch_analog[2] = 1;
     }
     if (touch_button[9] == true) {
         touch_analog[2] = 2;
     }
-    if (touch_button[8] == true) {
+    if (touch_button[10] == true) {
         touch_analog[2] = 3;
     }
     float gui_render_scale = touch_analog[2];
