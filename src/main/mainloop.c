@@ -37,9 +37,16 @@ SDL_AppResult AES_mainloop() {
     if (mouse.scrolling && key_down(SDL_SCANCODE_LSHIFT)) {cam_speed += mouse.wheel.y;}
     if (mouse.scrolling && key_down(SDL_SCANCODE_LCTRL)) {pan_sensitivity += mouse.wheel.y;}
     float cam_vel = SDL_pow(2,cam_speed)/60;
-    float pan_x = mouse.x_rel * SDL_pow(2,pan_sensitivity/4) + touch_analog[0] * SDL_pow(2,pan_sensitivity/4);
-    float pan_y = mouse.y_rel * SDL_pow(2,pan_sensitivity/4) + touch_analog[1] * SDL_pow(2,pan_sensitivity/4);
+    float pan_x, pan_y;
+    if (!touch_button[7]) {
+        pan_x = mouse.x_rel * SDL_pow(2,pan_sensitivity/4);
+        pan_y = mouse.y_rel * SDL_pow(2,pan_sensitivity/4);
+    } else {
+        pan_x = touch_analog[0] * SDL_pow(2,pan_sensitivity/4);
+        pan_y = touch_analog[1] * SDL_pow(2,pan_sensitivity/4);
+    }
     //SDL_SetWindowFullscreen(root_window, is_fullscreen);
+    //SDL_Log("x%.3f y%.3f", pan_x, pan_y);
 
     // camera panning
     if (pan_camera) {
