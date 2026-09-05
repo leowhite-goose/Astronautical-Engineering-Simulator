@@ -9032,8 +9032,6 @@ var writeArrayToMemory = (array, buffer) => {
   }
 }
 
-var requestFullscreen = Browser.requestFullscreen;
-
 var FS_createPath = (...args) => FS.createPath(...args);
 
 var FS_unlink = (...args) => FS.unlink(...args);
@@ -9123,8 +9121,6 @@ Module["addRunDependency"] = addRunDependency;
 
 Module["removeRunDependency"] = removeRunDependency;
 
-Module["requestFullscreen"] = requestFullscreen;
-
 Module["FS_preloadFile"] = FS_preloadFile;
 
 Module["FS_unlink"] = FS_unlink;
@@ -9141,7 +9137,7 @@ var missingLibrarySymbols = [ "writeI53ToI64Clamped", "writeI53ToI64Signaling", 
 
 missingLibrarySymbols.forEach(missingLibrarySymbol);
 
-var unexportedSymbols = [ "run", "out", "err", "callMain", "abort", "wasmExports", "writeStackCookie", "checkStackCookie", "writeI53ToI64", "readI53FromI64", "readI53FromU64", "INT53_MAX", "INT53_MIN", "bigintToI53Checked", "HEAP8", "HEAPU8", "HEAP16", "HEAPU16", "HEAP32", "HEAPU32", "HEAPF32", "HEAPF64", "HEAP64", "HEAPU64", "stackSave", "stackRestore", "stackAlloc", "ptrToString", "exitJS", "getHeapMax", "growMemory", "ENV", "ERRNO_CODES", "strError", "DNS", "Protocols", "Sockets", "timers", "warnOnce", "readEmAsmArgsArray", "readEmAsmArgs", "runEmAsmFunction", "runMainThreadEmAsm", "jstoi_q", "getExecutableName", "autoResumeAudioContext", "dynCall", "handleException", "keepRuntimeAlive", "runtimeKeepalivePush", "runtimeKeepalivePop", "callUserCallback", "maybeExit", "asyncLoad", "alignMemory", "mmapAlloc", "wasmTable", "wasmMemory", "getUniqueRunDependency", "noExitRuntime", "addOnPreRun", "addOnExit", "addOnPostRun", "freeTableIndexes", "functionsInTableMap", "setValue", "PATH", "PATH_FS", "UTF8Decoder", "UTF8ArrayToString", "UTF8ToString", "stringToUTF8Array", "stringToUTF8", "lengthBytesUTF8", "intArrayFromString", "UTF16Decoder", "stringToNewUTF8", "stringToUTF8OnStack", "writeArrayToMemory", "JSEvents", "registerKeyEventCallback", "specialHTMLTargets", "maybeCStringToJsString", "findEventTarget", "findCanvasEventTarget", "getBoundingClientRect", "fillMouseEventData", "registerWheelEventCallback", "registerUiEventCallback", "registerFocusEventCallback", "screenOrientation", "fillOrientationChangeEventData", "registerOrientationChangeEventCallback", "fillFullscreenChangeEventData", "registerFullscreenChangeEventCallback", "callCanvasResizedCallback", "JSEvents_requestFullscreen", "JSEvents_resizeCanvasForFullscreen", "registerRestoreOldStyle", "setLetterbox", "currentFullscreenStrategy", "restoreOldWindowedStyle", "doRequestFullscreen", "fillPointerlockChangeEventData", "registerPointerlockChangeEventCallback", "requestPointerLock", "fillVisibilityChangeEventData", "registerVisibilityChangeEventCallback", "fillGamepadEventData", "registerGamepadEventCallback", "registerBeforeUnloadEventCallback", "setCanvasElementSizeCallingThread", "setCanvasElementSizeMainThread", "setCanvasElementSize", "getCanvasSizeCallingThread", "getCanvasSizeMainThread", "getCanvasElementSize", "UNWIND_CACHE", "ExitStatus", "getEnvStrings", "checkWasiClock", "doReadv", "doWritev", "initRandomFill", "randomFill", "safeSetTimeout", "emSetImmediate", "emClearImmediate_deps", "emClearImmediate", "registerPreMainLoop", "promiseMap", "Browser", "setCanvasSize", "getUserMedia", "createContext", "getPreloadedImageData__data", "wget", "MONTH_DAYS_REGULAR", "MONTH_DAYS_LEAP", "MONTH_DAYS_REGULAR_CUMULATIVE", "MONTH_DAYS_LEAP_CUMULATIVE", "SYSCALLS", "preloadPlugins", "FS_createPreloadedFile", "FS_modeStringToFlags", "FS_getMode", "FS_fileDataToTypedArray", "FS_stdin_getChar_buffer", "FS_stdin_getChar", "FS_readFile", "FS", "FS_root", "FS_mounts", "FS_devices", "FS_streams", "FS_nextInode", "FS_nameTable", "FS_currentPath", "FS_initialized", "FS_ignorePermissions", "FS_filesystems", "FS_syncFSRequests", "FS_lookupPath", "FS_getPath", "FS_hashName", "FS_hashAddNode", "FS_hashRemoveNode", "FS_lookupNode", "FS_createNode", "FS_destroyNode", "FS_isRoot", "FS_isMountpoint", "FS_isFile", "FS_isDir", "FS_isLink", "FS_isChrdev", "FS_isBlkdev", "FS_isFIFO", "FS_isSocket", "FS_flagsToPermissionString", "FS_nodePermissions", "FS_mayLookup", "FS_mayCreate", "FS_mayDelete", "FS_mayOpen", "FS_checkOpExists", "FS_nextfd", "FS_getStreamChecked", "FS_getStream", "FS_createStream", "FS_closeStream", "FS_dupStream", "FS_doSetAttr", "FS_chrdev_stream_ops", "FS_major", "FS_minor", "FS_makedev", "FS_registerDevice", "FS_getDevice", "FS_getMounts", "FS_syncfs", "FS_mount", "FS_unmount", "FS_lookup", "FS_mknod", "FS_statfs", "FS_statfsStream", "FS_statfsNode", "FS_create", "FS_mkdir", "FS_mkdev", "FS_symlink", "FS_link", "FS_rename", "FS_rmdir", "FS_readdir", "FS_readlink", "FS_stat", "FS_fstat", "FS_lstat", "FS_doChmod", "FS_chmod", "FS_lchmod", "FS_fchmod", "FS_doChown", "FS_chown", "FS_lchown", "FS_fchown", "FS_doTruncate", "FS_truncate", "FS_ftruncate", "FS_utime", "FS_open", "FS_close", "FS_isClosed", "FS_llseek", "FS_read", "FS_write", "FS_mmap", "FS_msync", "FS_ioctl", "FS_writeFile", "FS_cwd", "FS_chdir", "FS_createDefaultDirectories", "FS_createDefaultDevices", "FS_createSpecialDirectories", "FS_createStandardStreams", "FS_staticInit", "FS_init", "FS_quit", "FS_findObject", "FS_analyzePath", "FS_createFile", "FS_forceLoadFile", "MEMFS", "TTY", "PIPEFS", "SOCKFS", "tempFixedLengthArray", "miniTempWebGLFloatBuffers", "miniTempWebGLIntBuffers", "heapObjectForWebGLType", "toTypedArrayIndex", "webgl_enable_ANGLE_instanced_arrays", "webgl_enable_OES_vertex_array_object", "webgl_enable_WEBGL_draw_buffers", "webgl_enable_WEBGL_multi_draw", "webgl_enable_EXT_polygon_offset_clamp", "webgl_enable_EXT_clip_control", "webgl_enable_WEBGL_polygon_mode", "GL", "emscriptenWebGLGet", "computeUnpackAlignedImageSize", "colorChannelsInGlTextureFormat", "emscriptenWebGLGetTexPixelData", "emscriptenWebGLGetUniform", "webglGetProgramUniformLocation", "webglGetUniformLocation", "webglPrepareUniformLocationsBeforeFirstUse", "webglGetLeftBracePos", "emscriptenWebGLGetVertexAttrib", "__glGetActiveAttribOrUniform", "AL", "GLUT", "EGL", "GLEW", "IDBStore", "SDL", "SDL_gfx", "waitAsyncPolyfilled", "print", "printErr", "jstoi_s", "PThread", "terminateWorker", "cleanupThread", "registerTLSInit", "spawnThread", "exitOnMainThread", "proxyToMainThread", "proxiedJSCallArgs", "invokeEntryPoint", "checkMailbox" ];
+var unexportedSymbols = [ "run", "out", "err", "callMain", "abort", "wasmExports", "writeStackCookie", "checkStackCookie", "writeI53ToI64", "readI53FromI64", "readI53FromU64", "INT53_MAX", "INT53_MIN", "bigintToI53Checked", "HEAP8", "HEAPU8", "HEAP16", "HEAPU16", "HEAP32", "HEAPU32", "HEAPF32", "HEAPF64", "HEAP64", "HEAPU64", "stackSave", "stackRestore", "stackAlloc", "ptrToString", "exitJS", "getHeapMax", "growMemory", "ENV", "ERRNO_CODES", "strError", "DNS", "Protocols", "Sockets", "timers", "warnOnce", "readEmAsmArgsArray", "readEmAsmArgs", "runEmAsmFunction", "runMainThreadEmAsm", "jstoi_q", "getExecutableName", "autoResumeAudioContext", "dynCall", "handleException", "keepRuntimeAlive", "runtimeKeepalivePush", "runtimeKeepalivePop", "callUserCallback", "maybeExit", "asyncLoad", "alignMemory", "mmapAlloc", "wasmTable", "wasmMemory", "getUniqueRunDependency", "noExitRuntime", "addOnPreRun", "addOnExit", "addOnPostRun", "freeTableIndexes", "functionsInTableMap", "setValue", "PATH", "PATH_FS", "UTF8Decoder", "UTF8ArrayToString", "UTF8ToString", "stringToUTF8Array", "stringToUTF8", "lengthBytesUTF8", "intArrayFromString", "UTF16Decoder", "stringToNewUTF8", "stringToUTF8OnStack", "writeArrayToMemory", "JSEvents", "registerKeyEventCallback", "specialHTMLTargets", "maybeCStringToJsString", "findEventTarget", "findCanvasEventTarget", "getBoundingClientRect", "fillMouseEventData", "registerWheelEventCallback", "registerUiEventCallback", "registerFocusEventCallback", "screenOrientation", "fillOrientationChangeEventData", "registerOrientationChangeEventCallback", "fillFullscreenChangeEventData", "registerFullscreenChangeEventCallback", "callCanvasResizedCallback", "JSEvents_requestFullscreen", "JSEvents_resizeCanvasForFullscreen", "registerRestoreOldStyle", "setLetterbox", "currentFullscreenStrategy", "restoreOldWindowedStyle", "doRequestFullscreen", "fillPointerlockChangeEventData", "registerPointerlockChangeEventCallback", "requestPointerLock", "fillVisibilityChangeEventData", "registerVisibilityChangeEventCallback", "fillGamepadEventData", "registerGamepadEventCallback", "registerBeforeUnloadEventCallback", "setCanvasElementSizeCallingThread", "setCanvasElementSizeMainThread", "setCanvasElementSize", "getCanvasSizeCallingThread", "getCanvasSizeMainThread", "getCanvasElementSize", "UNWIND_CACHE", "ExitStatus", "getEnvStrings", "checkWasiClock", "doReadv", "doWritev", "initRandomFill", "randomFill", "safeSetTimeout", "emSetImmediate", "emClearImmediate_deps", "emClearImmediate", "registerPreMainLoop", "promiseMap", "Browser", "requestFullscreen", "setCanvasSize", "getUserMedia", "createContext", "getPreloadedImageData__data", "wget", "MONTH_DAYS_REGULAR", "MONTH_DAYS_LEAP", "MONTH_DAYS_REGULAR_CUMULATIVE", "MONTH_DAYS_LEAP_CUMULATIVE", "SYSCALLS", "preloadPlugins", "FS_createPreloadedFile", "FS_modeStringToFlags", "FS_getMode", "FS_fileDataToTypedArray", "FS_stdin_getChar_buffer", "FS_stdin_getChar", "FS_readFile", "FS", "FS_root", "FS_mounts", "FS_devices", "FS_streams", "FS_nextInode", "FS_nameTable", "FS_currentPath", "FS_initialized", "FS_ignorePermissions", "FS_filesystems", "FS_syncFSRequests", "FS_lookupPath", "FS_getPath", "FS_hashName", "FS_hashAddNode", "FS_hashRemoveNode", "FS_lookupNode", "FS_createNode", "FS_destroyNode", "FS_isRoot", "FS_isMountpoint", "FS_isFile", "FS_isDir", "FS_isLink", "FS_isChrdev", "FS_isBlkdev", "FS_isFIFO", "FS_isSocket", "FS_flagsToPermissionString", "FS_nodePermissions", "FS_mayLookup", "FS_mayCreate", "FS_mayDelete", "FS_mayOpen", "FS_checkOpExists", "FS_nextfd", "FS_getStreamChecked", "FS_getStream", "FS_createStream", "FS_closeStream", "FS_dupStream", "FS_doSetAttr", "FS_chrdev_stream_ops", "FS_major", "FS_minor", "FS_makedev", "FS_registerDevice", "FS_getDevice", "FS_getMounts", "FS_syncfs", "FS_mount", "FS_unmount", "FS_lookup", "FS_mknod", "FS_statfs", "FS_statfsStream", "FS_statfsNode", "FS_create", "FS_mkdir", "FS_mkdev", "FS_symlink", "FS_link", "FS_rename", "FS_rmdir", "FS_readdir", "FS_readlink", "FS_stat", "FS_fstat", "FS_lstat", "FS_doChmod", "FS_chmod", "FS_lchmod", "FS_fchmod", "FS_doChown", "FS_chown", "FS_lchown", "FS_fchown", "FS_doTruncate", "FS_truncate", "FS_ftruncate", "FS_utime", "FS_open", "FS_close", "FS_isClosed", "FS_llseek", "FS_read", "FS_write", "FS_mmap", "FS_msync", "FS_ioctl", "FS_writeFile", "FS_cwd", "FS_chdir", "FS_createDefaultDirectories", "FS_createDefaultDevices", "FS_createSpecialDirectories", "FS_createStandardStreams", "FS_staticInit", "FS_init", "FS_quit", "FS_findObject", "FS_analyzePath", "FS_createFile", "FS_forceLoadFile", "MEMFS", "TTY", "PIPEFS", "SOCKFS", "tempFixedLengthArray", "miniTempWebGLFloatBuffers", "miniTempWebGLIntBuffers", "heapObjectForWebGLType", "toTypedArrayIndex", "webgl_enable_ANGLE_instanced_arrays", "webgl_enable_OES_vertex_array_object", "webgl_enable_WEBGL_draw_buffers", "webgl_enable_WEBGL_multi_draw", "webgl_enable_EXT_polygon_offset_clamp", "webgl_enable_EXT_clip_control", "webgl_enable_WEBGL_polygon_mode", "GL", "emscriptenWebGLGet", "computeUnpackAlignedImageSize", "colorChannelsInGlTextureFormat", "emscriptenWebGLGetTexPixelData", "emscriptenWebGLGetUniform", "webglGetProgramUniformLocation", "webglGetUniformLocation", "webglPrepareUniformLocationsBeforeFirstUse", "webglGetLeftBracePos", "emscriptenWebGLGetVertexAttrib", "__glGetActiveAttribOrUniform", "AL", "GLUT", "EGL", "GLEW", "IDBStore", "SDL", "SDL_gfx", "waitAsyncPolyfilled", "print", "printErr", "jstoi_s", "PThread", "terminateWorker", "cleanupThread", "registerTLSInit", "spawnThread", "exitOnMainThread", "proxyToMainThread", "proxiedJSCallArgs", "invokeEntryPoint", "checkMailbox" ];
 
 unexportedSymbols.forEach(unexportedRuntimeSymbol);
 
@@ -9186,7 +9182,7 @@ function checkIncomingModuleAPI() {
 }
 
 var ASM_CONSTS = {
-  17465616: () => {
+  17465936: () => {
     if (typeof (Module["SDL3"]) === "undefined") {
       Module["SDL3"] = {};
     }
@@ -9202,7 +9198,7 @@ var ASM_CONSTS = {
       };
     }
   },
-  17465930: $0 => {
+  17466250: $0 => {
     var str = UTF8ToString($0) + "\n\n" + "Abort/Retry/Ignore/AlwaysIgnore? [ariA] :";
     var reply = window.prompt(str, "i");
     if (reply === null) {
@@ -9210,11 +9206,11 @@ var ASM_CONSTS = {
     }
     return reply.length === 1 ? reply.charCodeAt(0) : -1;
   },
-  17466145: () => {
+  17466465: () => {
     Module["SDL3"].camera = {};
   },
-  17466177: () => (navigator.mediaDevices === undefined) ? 0 : 1,
-  17466236: ($0, $1, $2, $3, $4) => {
+  17466497: () => (navigator.mediaDevices === undefined) ? 0 : 1,
+  17466556: ($0, $1, $2, $3, $4) => {
     const device = $0;
     const w = $1;
     const h = $2;
@@ -9288,7 +9284,7 @@ var ASM_CONSTS = {
       outcome(device, 0, 0, 0, 0);
     });
   },
-  17468542: () => {
+  17468862: () => {
     const SDL3 = Module["SDL3"];
     if ((typeof (SDL3) === "undefined") || (typeof (SDL3.camera) === "undefined") || (typeof (SDL3.camera.stream) === "undefined")) {
       return;
@@ -9296,7 +9292,7 @@ var ASM_CONSTS = {
     SDL3.camera.stream.getTracks().forEach(track => track.stop());
     SDL3.camera = {};
   },
-  17468793: ($0, $1, $2) => {
+  17469113: ($0, $1, $2) => {
     const w = $0;
     const h = $1;
     const rgba = $2;
@@ -9309,18 +9305,18 @@ var ASM_CONSTS = {
     (growMemViews(), HEAPU8).set(imgrgba, rgba);
     return 1;
   },
-  17469171: () => {
+  17469491: () => {
     if (typeof (Module["SDL3"]) !== "undefined") {
       Module["SDL3"].camera = undefined;
     }
   },
-  17469258: () => {
+  17469578: () => {
     Module["SDL3"].dummy_audio = {};
     Module["SDL3"].dummy_audio.timers = [];
     Module["SDL3"].dummy_audio.timers[0] = undefined;
     Module["SDL3"].dummy_audio.timers[1] = undefined;
   },
-  17469435: ($0, $1, $2, $3, $4) => {
+  17469755: ($0, $1, $2, $3, $4) => {
     var a = Module["SDL3"].dummy_audio;
     if (a.timers[$0] !== undefined) {
       clearInterval(a.timers[$0]);
@@ -9329,14 +9325,14 @@ var ASM_CONSTS = {
       dynCall("vi", $3, [ $4 ]);
     }, ($1 / $2) * 1e3);
   },
-  17469627: $0 => {
+  17469947: $0 => {
     var a = Module["SDL3"].dummy_audio;
     if (a.timers[$0] !== undefined) {
       clearInterval(a.timers[$0]);
     }
     a.timers[$0] = undefined;
   },
-  17469758: () => {
+  17470078: () => {
     if (typeof (AudioContext) !== "undefined") {
       return true;
     } else if (typeof (webkitAudioContext) !== "undefined") {
@@ -9344,7 +9340,7 @@ var ASM_CONSTS = {
     }
     return false;
   },
-  17469905: () => {
+  17470225: () => {
     if ((typeof (navigator.mediaDevices) !== "undefined") && (typeof (navigator.mediaDevices.getUserMedia) !== "undefined")) {
       return true;
     } else if (typeof (navigator.webkitGetUserMedia) !== "undefined") {
@@ -9352,7 +9348,7 @@ var ASM_CONSTS = {
     }
     return false;
   },
-  17470139: () => {
+  17470459: () => {
     var SDL3 = Module["SDL3"];
     if (typeof (SDL3.audio_playback) === "undefined") {
       SDL3.audio_playback = {};
@@ -9374,8 +9370,8 @@ var ASM_CONSTS = {
     }
     return (SDL3.audioContext !== undefined);
   },
-  17470718: () => Module["SDL3"].audioContext.sampleRate,
-  17470769: ($0, $1, $2, $3) => {
+  17471038: () => Module["SDL3"].audioContext.sampleRate,
+  17471089: ($0, $1, $2, $3) => {
     var SDL3 = Module["SDL3"];
     var have_microphone = function(stream) {
       if (SDL3.audio_recording.silenceTimer !== undefined) {
@@ -9417,7 +9413,7 @@ var ASM_CONSTS = {
       }, have_microphone, no_microphone);
     }
   },
-  17472610: ($0, $1, $2, $3) => {
+  17472930: ($0, $1, $2, $3) => {
     var SDL3 = Module["SDL3"];
     SDL3.audio_playback.scriptProcessorNode = SDL3.audioContext["createScriptProcessor"]($1, 0, $0);
     SDL3.audio_playback.scriptProcessorNode["onaudioprocess"] = function(e) {
@@ -9449,7 +9445,7 @@ var ASM_CONSTS = {
       SDL3.audio_playback.silenceTimer = setInterval(silence_callback, ($1 / SDL3.audioContext.sampleRate) * 1e3);
     }
   },
-  17473926: $0 => {
+  17474246: $0 => {
     var SDL3 = Module["SDL3"];
     if ($0) {
       if (SDL3.audio_recording.silenceTimer !== undefined) {
@@ -9483,7 +9479,7 @@ var ASM_CONSTS = {
       SDL3.audioContext = undefined;
     }
   },
-  17475082: ($0, $1) => {
+  17475402: ($0, $1) => {
     var SDL3 = Module["SDL3"];
     var buf = SDL3.CPtrToHeap32Index($0);
     var numChannels = SDL3.audio_playback.currentPlaybackBuffer["numberOfChannels"];
@@ -9497,7 +9493,7 @@ var ASM_CONSTS = {
       }
     }
   },
-  17475615: ($0, $1) => {
+  17475935: ($0, $1) => {
     var SDL3 = Module["SDL3"];
     var numChannels = SDL3.audio_recording.currentRecordingBuffer.numberOfChannels;
     for (var c = 0; c < numChannels; ++c) {
@@ -9516,7 +9512,7 @@ var ASM_CONSTS = {
       }
     }
   },
-  17476242: $0 => {
+  17476562: $0 => {
     let gamepads = navigator["getGamepads"]();
     if (!gamepads) {
       return 0;
@@ -9527,7 +9523,7 @@ var ASM_CONSTS = {
     }
     return 1;
   },
-  17476417: ($0, $1, $2) => {
+  17476737: ($0, $1, $2) => {
     let gamepads = navigator["getGamepads"]();
     if (!gamepads) {
       return 0;
@@ -9544,7 +9540,7 @@ var ASM_CONSTS = {
     });
     return 1;
   },
-  17476753: $0 => {
+  17477073: $0 => {
     var parms = new URLSearchParams(window.location.search);
     for (const [key, value] of parms) {
       if (key.startsWith("SDL_")) {
@@ -9558,7 +9554,7 @@ var ASM_CONSTS = {
       }
     }
   },
-  17477094: ($0, $1, $2, $3) => {
+  17477414: ($0, $1, $2, $3) => {
     var w = $0;
     var h = $1;
     var pixels = $2;
@@ -9589,7 +9585,7 @@ var ASM_CONSTS = {
     SDL3.ctx.putImageData(SDL3.image, 0, 0);
     return true;
   },
-  17477843: () => {
+  17478163: () => {
     var SDL3 = Module["SDL3"];
     SDL3["mouse_x"] = 0;
     SDL3["mouse_y"] = 0;
@@ -9615,7 +9611,7 @@ var ASM_CONSTS = {
       }
     });
   },
-  17478531: ($0, $1, $2, $3, $4) => {
+  17478851: ($0, $1, $2, $3, $4) => {
     var w = $0;
     var h = $1;
     var hot_x = $2;
@@ -9636,20 +9632,20 @@ var ASM_CONSTS = {
     stringToUTF8(url, urlBuf, url.length + 1);
     return urlBuf;
   },
-  17479189: $0 => {
+  17479509: $0 => {
     if (Module["canvas"]) {
       Module["canvas"].style["cursor"] = UTF8ToString($0);
     }
   },
-  17479272: () => {
+  17479592: () => {
     if (Module["canvas"]) {
       Module["canvas"].style["cursor"] = "none";
     }
   },
-  17479341: () => Module["SDL3"]["mouse_x"],
-  17479379: () => Module["SDL3"]["mouse_y"],
-  17479417: $0 => Module["SDL3"]["mouse_buttons"][$0],
-  17479465: $0 => {
+  17479661: () => Module["SDL3"]["mouse_x"],
+  17479699: () => Module["SDL3"]["mouse_y"],
+  17479737: $0 => Module["SDL3"]["mouse_buttons"][$0],
+  17479785: $0 => {
     var data = $0;
     document.sdlEventHandlerLockKeysCheck = function(event) {
       if ((event.key != "CapsLock") && (event.key != "NumLock") && (event.key != "ScrollLock")) {
@@ -9658,10 +9654,10 @@ var ASM_CONSTS = {
     };
     document.addEventListener("keydown", document.sdlEventHandlerLockKeysCheck);
   },
-  17479892: () => {
+  17480212: () => {
     document.removeEventListener("keydown", document.sdlEventHandlerLockKeysCheck);
   },
-  17479976: $0 => {
+  17480296: $0 => {
     var target = document;
     if (target) {
       target.sdlEventHandlerMouseButtonUpGlobal = function(event) {
@@ -9675,7 +9671,7 @@ var ASM_CONSTS = {
       target.addEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal);
     }
   },
-  17480337: $0 => {
+  17480657: $0 => {
     var SDL3 = Module["SDL3"];
     if (SDL3.makePointerEventCStruct === undefined) {
       SDL3.makePointerEventCStruct = function(left, top, event) {
@@ -9713,7 +9709,7 @@ var ASM_CONSTS = {
       };
     }
   },
-  17481329: $0 => {
+  17481649: $0 => {
     var id = UTF8ToString($0);
     try {
       var canvas = document.querySelector(id);
@@ -9723,23 +9719,23 @@ var ASM_CONSTS = {
     } catch (e) {}
     return false;
   },
-  17481495: () => document.hasFocus(),
-  17481527: () => {
+  17481815: () => document.hasFocus(),
+  17481847: () => {
     var target = document;
     if (target) {
       target.removeEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal);
       target.sdlEventHandlerMouseButtonUpGlobal = undefined;
     }
   },
-  17481709: () => document.body.clientWidth,
-  17481747: () => document.body.clientHeight,
-  17481786: () => window.innerWidth,
-  17481816: () => window.innerHeight,
-  17481847: () => window.outerWidth,
-  17481877: () => window.outerHeight,
-  17481908: () => window.pageXOffset,
-  17481939: () => window.pageYOffset,
-  17481970: ($0, $1) => {
+  17482029: () => document.body.clientWidth,
+  17482067: () => document.body.clientHeight,
+  17482106: () => window.innerWidth,
+  17482136: () => window.innerHeight,
+  17482167: () => window.outerWidth,
+  17482197: () => window.outerHeight,
+  17482228: () => window.pageXOffset,
+  17482259: () => window.pageYOffset,
+  17482290: ($0, $1) => {
     var target = document.querySelector(UTF8ToString($1));
     if (target) {
       var SDL3 = Module["SDL3"];
@@ -9777,7 +9773,7 @@ var ASM_CONSTS = {
       target.addEventListener("pointerup", target.sdlEventHandlerPointerGeneric);
     }
   },
-  17483358: ($0, $1, $2) => {
+  17483678: ($0, $1, $2) => {
     var target = document.querySelector(UTF8ToString($1));
     if (target) {
       var data = $0;
@@ -9857,7 +9853,7 @@ var ASM_CONSTS = {
       target.addEventListener("dragleave", SDL3.eventHandlerDropDragend);
     }
   },
-  17485725: $0 => {
+  17486045: $0 => {
     var target = document.querySelector(UTF8ToString($0));
     if (target) {
       var SDL3 = Module["SDL3"];
@@ -9885,7 +9881,7 @@ var ASM_CONSTS = {
       SDL3.eventHandlerDropDragend = undefined;
     }
   },
-  17486555: $0 => {
+  17486875: $0 => {
     var target = document.querySelector(UTF8ToString($0));
     if (target) {
       target.removeEventListener("pointerenter", target.sdlEventHandlerPointerEnter);
@@ -9900,7 +9896,7 @@ var ASM_CONSTS = {
       target.sdlEventHandlerPointerGeneric = undefined;
     }
   },
-  17487289: () => {
+  17487609: () => {
     if (!window.matchMedia) {
       return -1;
     }
@@ -9912,7 +9908,7 @@ var ASM_CONSTS = {
     }
     return -1;
   },
-  17487498: () => {
+  17487818: () => {
     if (typeof (Module["SDL3"]) !== "undefined") {
       var SDL3 = Module["SDL3"];
       SDL3.themeChangedMatchMedia.removeEventListener("change", SDL3.eventHandlerThemeChanged);
@@ -9920,14 +9916,14 @@ var ASM_CONSTS = {
       SDL3.eventHandlerThemeChanged = undefined;
     }
   },
-  17487751: () => window.innerWidth,
-  17487781: () => window.innerHeight,
-  17487812: $0 => {
+  17488071: () => window.innerWidth,
+  17488101: () => window.innerHeight,
+  17488132: $0 => {
     Module["requestFullscreen"] = function(lockPointer, resizeCanvas) {
       _requestFullscreenThroughSDL($0);
     };
   },
-  17487921: ($0, $1) => {
+  17488241: ($0, $1) => {
     var pngData = (growMemViews(), HEAPU8).buffer instanceof ArrayBuffer ? (growMemViews(), 
     HEAPU8).subarray($0, $0 + $1) : (growMemViews(), HEAPU8).slice($0, $0 + $1);
     var blob = new Blob([ pngData ], {
@@ -9946,12 +9942,12 @@ var ASM_CONSTS = {
     }
     link.href = url;
   },
-  17488414: () => {
+  17488734: () => {
     Module["requestFullscreen"] = function(lockPointer, resizeCanvas) {};
   },
-  17488488: () => window.innerWidth,
-  17488518: () => window.innerHeight,
-  17488549: $0 => {
+  17488808: () => window.innerWidth,
+  17488838: () => window.innerHeight,
+  17488869: $0 => {
     var canvas = document.querySelector(UTF8ToString($0));
     canvas.SDL3_original_position = canvas.style.position;
     canvas.SDL3_original_top = canvas.style.top;
@@ -9972,7 +9968,7 @@ var ASM_CONSTS = {
     canvas.style.top = "0";
     canvas.style.left = "0";
   },
-  17489247: () => {
+  17489567: () => {
     var div = document.getElementById("SDL3_fill_document_background_elements");
     if (div) {
       if (div.SDL3_canvas_nextsib) {
@@ -9989,7 +9985,7 @@ var ASM_CONSTS = {
       div.remove();
     }
   },
-  17489806: () => {
+  17490126: () => {
     if (window.matchMedia) {
       var SDL3 = Module["SDL3"];
       SDL3.eventHandlerThemeChanged = function(event) {
@@ -9999,7 +9995,7 @@ var ASM_CONSTS = {
       SDL3.themeChangedMatchMedia.addEventListener("change", SDL3.eventHandlerThemeChanged);
     }
   },
-  17490128: ($0, $1, $2, $3, $4) => {
+  17490448: ($0, $1, $2, $3, $4) => {
     var title = UTF8ToString($0);
     var message = UTF8ToString($1);
     var background = UTF8ToString($2);
@@ -10019,7 +10015,7 @@ var ASM_CONSTS = {
     dialog.append(p);
     dialog.showModal();
   },
-  17490669: ($0, $1, $2, $3, $4, $5, $6, $7) => {
+  17490989: ($0, $1, $2, $3, $4, $5, $6, $7) => {
     var dialog_id = UTF8ToString($0);
     var text = UTF8ToString($1);
     var responseId = $2;
@@ -10060,7 +10056,7 @@ var ASM_CONSTS = {
     dialog.append(button);
     return true;
   },
-  17491678: $0 => {
+  17491998: $0 => {
     var dialog_id = UTF8ToString($0);
     var dialog = document.getElementById(dialog_id);
     if (!dialog) {
@@ -10068,7 +10064,7 @@ var ASM_CONSTS = {
     }
     return dialog.open;
   },
-  17491816: $0 => {
+  17492136: $0 => {
     var dialog_id = UTF8ToString($0);
     var dialog = document.getElementById(dialog_id);
     if (!dialog) {
@@ -10080,7 +10076,7 @@ var ASM_CONSTS = {
       return 0;
     }
   },
-  17491998: ($0, $1) => {
+  17492318: ($0, $1) => {
     alert(UTF8ToString($0) + "\n\n" + UTF8ToString($1));
   }
 };

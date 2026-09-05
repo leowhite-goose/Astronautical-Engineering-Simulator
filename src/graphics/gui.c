@@ -52,6 +52,12 @@ SDL_HitTestResult HitTestCallback(SDL_Window *window, const SDL_Point *area, voi
     return SDL_HITTEST_NORMAL; // SDL_HITTEST_DRAGGABLE
 }
 
+Uint32 power_of_two(uint32 input) {
+    float exponent = SDL_logf(input) / SDL_logf(2); // https://stackoverflow.com/questions/11054740/logarithm-function-of-an-arbitrary-integer-base-in-c
+    Uint32 output = SDL_powf(2, SDL_ceil(exponent));
+    return output;
+}
+
 void gl_render_root_gui(float window_width, float window_height) { // https://stackoverflow.com/questions/28880562/rendering-text-with-sdl2-and-opengl
     glBindTexture(GL_TEXTURE_2D, root_gui_gl_texture);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Use blurry texture mapping (replace GL_LINEAR with GL_NEAREST for blocky)
@@ -60,23 +66,19 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
 
     glColor4f(1.0, 1.0, 1.0, 1.0); //Don't use special coloring
 
-    if (window_width >= window_height) {
-
-    } else {
-
-    }
-    float scale = 0.25;
-    float x_offset = -0.75;
-    float y_offset = 0.;
+    float x_scale = gui_texture_res/window_width;
+    float y_scale = gui_texture_res/window_height;
+    float x_offset = gui_texture_res/window_width - 1;
+    float y_offset = 1 - gui_texture_res/window_height;
     glBegin(GL_QUADS);
     glTexCoord2f(0.0f, 1.0f);
-    glVertex2f(-scale + x_offset, -scale + y_offset);
+    glVertex2f(-x_scale + x_offset, -y_scale + y_offset);
     glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(scale + x_offset, -scale + y_offset);
+    glVertex2f(x_scale + x_offset, -y_scale + y_offset);
     glTexCoord2f(1.0f, 0.0f);
-    glVertex2f(scale + x_offset, scale + y_offset);
+    glVertex2f(x_scale + x_offset, y_scale + y_offset);
     glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(-scale + x_offset, scale + y_offset);
+    glVertex2f(-x_scale + x_offset, y_scale + y_offset);
 
     glEnd();
 
@@ -101,11 +103,60 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
     glDisableClientState(GL_VERTEX_ARRAY);*/
 }
 
-void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last_tps) {
-    //SDL_SetRenderTarget(root_gui_renderer, root_gui_texture);
+bool coords_in_rectf(float x, float y, float rect[4]) { // rect[4] = {x,y,w,h};
+    if ((rect[0] <= x) && (x <= rect[0] + rect[2]) && (rect[1] <= y) && (y <= rect[1] + rect[3])) {
+        return true;
+    } else {
+        return false;
+    }
+}
 
-    SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 31);
+void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last_tps, uint16 window_width, uint16 window_height) {
+    SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 0);
     SDL_RenderClear(root_gui_renderer);
+    SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 31);
+    float finger_x = window_width * (touch.finger.x + touch.finger.dx);
+    float finger_y = window_height * (touch.finger.y + touch.finger.dy);
+    //SDL_Log("x: %.3f y: %.3f", finger_x, finger_y);
+    SDL_FRect rects_f[] = {
+        {0, 0, 128, 150},
+        {window_width - 128 - 32, window_height - 128 - 32, 128, 128}, // touchpad
+        {80, window_height - 80 - 32, 32, 32}, // middle
+        {32, window_height - 80 - 32, 32, 32}, // left
+        {80, window_height - 128 - 32, 32, 32}, // top
+        {128, window_height - 80 - 32, 32, 32}, // right
+        {80, window_height - 32 - 32, 32, 32}, // bottom
+        {176, window_height - 112 - 32, 32, 32}, // up
+        {176, window_height - 48 - 32, 32, 32} // down
+    };
+    float rect0[] = {80, window_height - 80 - 32, 32, 32}; // middle
+    touch_button[0] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect0));
+    float rect1[] = {32, window_height - 80 - 32, 32, 32}; // left
+    touch_button[1] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect1));
+    float rect2[] = {80, window_height - 128 - 32, 32, 32}; // top
+    touch_button[2] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect2));
+    float rect3[] = {128, window_height - 80 - 32, 32, 32}; // right
+    touch_button[3] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect3));
+    float rect4[] = {80, window_height - 32 - 32, 32, 32}; // bottom
+    touch_button[4] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect4));
+    float rect5[] = {176, window_height - 112 - 32, 32, 32}; // up
+    touch_button[5] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect5));
+    float rect6[] = {176, window_height - 48 - 32, 32, 32}; // down
+    touch_button[6] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect6));
+    float rect7[] = {window_width - 128 - 32, window_height - 128 - 32, 128, 128}; // touchpad
+    touch_button[7] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect7));
+    if (touch_button[7]) {
+        touch_analog[0] = (finger_x - window_width + 96)/64;
+        touch_analog[1] = (finger_y - window_height + 96)/64;
+    } else {
+        touch_analog[0] = 0;
+        touch_analog[1] = 0;
+    }
+    //SDL_Log("x%.3f y%.3f", touch_analog[0], touch_analog[1]);
+    SDL_RenderFillRects(root_gui_renderer, rects_f, sizeof(rects_f)/sizeof(rects_f[0]));
+    SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 63);
+    SDL_FRect rect8 = {window_width - 128 - 48 + 64*(touch_analog[0]+1), window_height - 128 - 48 + 64*(touch_analog[1]+1), 32, 32};
+    SDL_RenderFillRect(root_gui_renderer, &rect8);
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, SDL_ALPHA_OPAQUE); // sets draw color to white, full alpha
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 10, "Cam Vel:%" SDL_PRIs32, cam_speed);
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 26, "Pan Vel:%" SDL_PRIs32, pan_sensitivity);
@@ -120,12 +171,7 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
 
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 106, "%" SDL_PRIs32, (int) last_fps);
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 122, "%" SDL_PRIs32, (int) last_tps);
-    int128 big_number = 1.7e38;
-    //SDL_RenderDebugTextFormat(root_gui_renderer, 10, 138, "%.15lf",  (double) big_number / 1e15);
 
-    //SDL_SetRenderTarget(root_gui_renderer, NULL);
-    //gl_render_root_gui_texture(root_gui_texture);
-    //SDL_RenderTexture(root_renderer, root_gui_texture, NULL, NULL);
     SDL_RenderPresent(root_gui_renderer); // put it all on the screen!
 }
 

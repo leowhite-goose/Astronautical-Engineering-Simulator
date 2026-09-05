@@ -65,7 +65,8 @@ SDL_AppResult AES_init() {
     SDL_asprintf(&icon_path, "%sdata/icon.png", SDL_GetBasePath());
     SDL_Surface *window_icon_surface = SDL_LoadPNG(icon_path);
 
-    root_gui_surface =  SDL_CreateSurface(128, 128, SDL_PIXELFORMAT_ABGR8888);
+    gui_texture_res = power_of_two(SDL_max(root_window_width, root_window_height));
+    root_gui_surface =  SDL_CreateSurface(gui_texture_res, gui_texture_res, SDL_PIXELFORMAT_ABGR8888);
     root_gui_renderer = SDL_CreateSoftwareRenderer(root_gui_surface);
     SDL_SetRenderVSync(root_gui_renderer, 1);
     glGenTextures(1, &root_gui_gl_texture);

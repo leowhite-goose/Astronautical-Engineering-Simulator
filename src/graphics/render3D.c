@@ -70,25 +70,23 @@ void draw_world_geometry(vec6f cam) {
     }
     render_mesh(atmosphere_mesh, position);
 
-    //render_tetrahedra(vertices, tetrahedra, cell_count, position); // loading 3D model testing
-
     glDisable(GL_LIGHTING);
     glEnd();
 
-    /*glBegin(GL_TRIANGLES); // colliding blue triangles test
-    glVertex3f(p1a.x, p1a.y, p1a.z);
-    glVertex3f(p1b.x, p1b.y, p1b.z);
-    glVertex3f(p1c.x, p1c.y, p1c.z);
-    glVertex3f(p2a.x, p2a.y, p2a.z);
-    glVertex3f(p2b.x, p2b.y, p2b.z);
-    glVertex3f(p2c.x, p2c.y, p2c.z);
-    glEnd();*/
+    if (touch_button[0]) {
+        glBegin(GL_TRIANGLES); // colliding blue triangles test
+        glVertex3f(p1a.x, p1a.y, p1a.z);
+        glVertex3f(p1b.x, p1b.y, p1b.z);
+        glVertex3f(p1c.x, p1c.y, p1c.z);
+        glVertex3f(p2a.x, p2a.y, p2a.z);
+        glVertex3f(p2b.x, p2b.y, p2b.z);
+        glVertex3f(p2c.x, p2c.y, p2c.z);
+        glEnd();
+    }
 
     glEnable(GL_LIGHTING);
     render_tetrahedra(&model_vertices, &model_tetrahedra, model_cell_count, position, 0); // loading 3D model testing
     glDisable(GL_LIGHTING);
-    //int black = 26;
-    //SDL_Log("%" SDL_PRIu32 " %.3f" " %.3f" " %.3f", (unsigned int) model_vertices[black].i, model_vertices[black].x, model_vertices[black].y, model_vertices[black].z);
 
     glTranslatef(200, 0, 0);
     render_tetrahedra(&model_vertices, &model_tetrahedra, model_cell_count, position, 1);
@@ -97,27 +95,6 @@ void draw_world_geometry(vec6f cam) {
     glRotatef(90, 1.0, 0.0, 0.0);
     glRotatef(-90, 0.0, 1.0, 0.0);
     glTranslatef(-cam.y, cam.z, -cam.x);
-    /*glPointSize(8);
-    glTranslatef(position.x, position.y, position.z);
-    glBegin(GL_POINTS);
-    static int counter = 0;
-    int point = counter / 50;
-    glColor3f(1.0,1.0,1.0);
-    glVertex3f(atmosphere_mesh->vertices[point].x, atmosphere_mesh->vertices[point].y, atmosphere_mesh->vertices[point].z);
-    glEnd();
-    glBegin(GL_TRIANGLES);
-    int face = counter / 150;
-    glColor3f(0.6,0.6,0.6);
-    glVertex3f(atmosphere_mesh->vertices[3*face+0].x, atmosphere_mesh->vertices[3*face+0].y, atmosphere_mesh->vertices[3*face+0].z);
-    glVertex3f(atmosphere_mesh->vertices[3*face+1].x, atmosphere_mesh->vertices[3*face+1].y, atmosphere_mesh->vertices[3*face+1].z);
-    glVertex3f(atmosphere_mesh->vertices[3*face+2].x, atmosphere_mesh->vertices[3*face+2].y, atmosphere_mesh->vertices[3*face+2].z);
-    glEnd();
-    glTranslatef(-position.x, -position.y, -position.z);
-    if (counter < 504*50-1) {
-        counter++;
-    } else {
-        counter = 0;
-    }*/
 }
 
 void render3D(float window_width, float window_height, vec6f cam) {
@@ -153,15 +130,6 @@ void render3D(float window_width, float window_height, vec6f cam) {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glEnable(GL_TEXTURE_2D);
-    //SDL_SetRenderTarget(root_gui_renderer, root_gui_texture);
-    /*SDL_SetRenderDrawColor(root_gui_renderer, 90, 90, 90, 127);
-    SDL_RenderClear(root_gui_renderer);
-    SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-    SDL_RenderDebugTextFormat(root_gui_renderer, 42, 42, "%" SDL_PRIs32, 42);
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 10, "%" SDL_PRIs32, 10);
-    SDL_RenderDebugTextFormat(root_gui_renderer, 100, 100, "%" SDL_PRIs32, 100);
-    SDL_RenderPresent(root_gui_renderer); // put it all on the screen!*/
-    //SDL_SetRenderTarget(root_gui_renderer, NULL);
     gl_render_root_gui(window_width, window_height); // note
     glDisable(GL_TEXTURE_2D);
 }

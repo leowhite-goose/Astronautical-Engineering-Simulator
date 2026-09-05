@@ -15,6 +15,8 @@ typedef signed _BitInt(48) int48;
 typedef signed _BitInt(64) int64;
 typedef signed _BitInt(128) int128; // __int128
 
+typedef unsigned _BitInt(8) uint8;
+typedef unsigned _BitInt(16) uint16;
 typedef unsigned _BitInt(32) uint32;
 typedef unsigned _BitInt(64) uint64;
 
@@ -198,6 +200,19 @@ struct mouse {
     float y;
     float x_rel;
     float y_rel;
+};
+
+struct finger {
+    float x;
+    float y;
+    float p; // pressure
+    bool down;
+    float dx;
+    float dy;
+};
+
+struct touch {
+    struct finger finger;
 };
 
 #endif

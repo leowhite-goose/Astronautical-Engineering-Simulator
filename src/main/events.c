@@ -104,6 +104,23 @@ SDL_AppResult AES_events(SDL_Event *event) {
             break;
         case SDL_EVENT_TEXT_INPUT:
             break;
+        case SDL_EVENT_FINGER_DOWN: // https://wiki.libsdl.org/SDL3/README-touch
+            touch.finger.down = true;
+            touch.finger.x = event->tfinger.x;
+            touch.finger.y = event->tfinger.y;
+            touch.finger.p = event->tfinger.pressure;
+            //SDL_Log("x%.3f y%.3f p%.3f", touch.finger.x, touch.finger.y, touch.finger.p);
+            break;
+        case SDL_EVENT_FINGER_UP:
+            touch.finger.down = false;
+            touch.finger.dx = 0;
+            touch.finger.dy = 0;
+            break;
+        case SDL_EVENT_FINGER_MOTION:
+            touch.finger.dx += event->tfinger.dx;
+            touch.finger.dy += event->tfinger.dy;
+            //SDL_Log("x%.3f y%.3f", touch.finger.dx, touch.finger.dy);
+            break;
     }
     return SDL_APP_CONTINUE;  // carry on with the program!
 }

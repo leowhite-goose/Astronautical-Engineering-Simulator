@@ -474,7 +474,7 @@ void connect_mesh(vec32i3f **nodes, vec5i32 **cells, int vertex_count, int node_
 
     vert[i] = length t0 t1 t2 ... tn
     */
-    SDL_free(nodes_in_cells); // just in case
+    /*SDL_free(nodes_in_cells); // just in case
     *nodes_in_cells = SDL_malloc(sizeof(*int32) * vertex_count); // array of pointers
     int32 node0, node1, node2, node3;
     for (int i = 0; i < node_count; i++) {
@@ -489,5 +489,5 @@ void connect_mesh(vec32i3f **nodes, vec5i32 **cells, int vertex_count, int node_
         node1 = *cells[i].x;
         node2 = *cells[i].y;
         node3 = *cells[i].z;
-    }
+    }*/
 }

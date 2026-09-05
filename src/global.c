@@ -18,6 +18,7 @@ int key_count;
 bool keyboard_scancode_toggled_state[SDL_SCANCODE_COUNT]; // https://wiki.libsdl.org/SDL3/SDL_Scancode
 SDL_Keymod keymod_state;
 struct mouse mouse;
+struct touch touch;
 
 vec6f root_cam = {50,90,0,-70,-110,-10};
 
@@ -35,6 +36,8 @@ vec3f p2a = {1,0,0};
 vec3f p2b = {1,1,0};
 vec3f p2c = {-2,4,1};
 bool blue_overlap;
+static bool touch_button[32];
+static float touch_analog[6];
 
 // world
 SDL_Thread *physics_thread;
@@ -50,5 +53,6 @@ int64 shortest_delay_ns;
 float *normal_data;
 float *color_data;
 float *vertex_data;
+uint16 gui_texture_res;
 
 #endif
