@@ -113,16 +113,22 @@ bool coords_in_rectf(float x, float y, float rect[4]) { // rect[4] = {x,y,w,h};
 
 void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last_tps, uint16 window_width, uint16 window_height) {
     if (touch_analog[2] <= 0) {
-        touch_analog[2] = 1;
+        touch_analog[2] = 1.5;
     }
     if (touch_button[8] == true) {
         touch_analog[2] = 1;
     }
     if (touch_button[9] == true) {
-        touch_analog[2] = 2;
+        touch_analog[2] = 1.5;
     }
     if (touch_button[10] == true) {
+        touch_analog[2] = 2;
+    }
+    if (touch_button[11] == true) {
         touch_analog[2] = 3;
+    }
+    if (touch_button[12] == true) {
+        touch_analog[2] = 4;
     }
     float gui_render_scale = touch_analog[2];
     SDL_SetRenderScale(root_gui_renderer, gui_render_scale, gui_render_scale);
@@ -131,54 +137,61 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
     window_width = window_width / touch_analog[2];
     window_height = window_height / touch_analog[2];
 
-    SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 0);
+    SDL_SetRenderDrawColor(root_gui_renderer, 0, 0, 0, 0);
     SDL_RenderClear(root_gui_renderer);
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 31);
-    float finger_x = window_width * (touch.finger.x + touch.finger.dx);
-    float finger_y = window_height * (touch.finger.y + touch.finger.dy);
-    //SDL_Log("x: %.3f y: %.3f", finger_x, finger_y);
+
     SDL_FRect rects_f[] = {
-        {0, 0, 128, 150},
-        {window_width - 128 - 32, window_height - 128 - 32, 128, 128}, // touchpad
+        {0, 0, 128, 150}, // number & stats overlay
         {80, window_height - 80 - 32, 32, 32}, // middle
         {32, window_height - 80 - 32, 32, 32}, // left
         {80, window_height - 128 - 32, 32, 32}, // top
         {128, window_height - 80 - 32, 32, 32}, // right
         {80, window_height - 32 - 32, 32, 32}, // bottom
         {176, window_height - 112 - 32, 32, 32}, // up
-        {176, window_height - 48 - 32, 32, 32} // down
+        {176, window_height - 48 - 32, 32, 32}, // down
+        {window_width - 128 - 32, window_height - 128 - 32, 128, 128} // touchpad
     };
-    float rect0[] = {80, window_height - 80 - 32, 32, 32}; // middle
-    touch_button[0] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect0));
-    float rect1[] = {32, window_height - 80 - 32, 32, 32}; // left
-    touch_button[1] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect1));
-    float rect2[] = {80, window_height - 128 - 32, 32, 32}; // top
-    touch_button[2] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect2));
-    float rect3[] = {128, window_height - 80 - 32, 32, 32}; // right
-    touch_button[3] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect3));
-    float rect4[] = {80, window_height - 32 - 32, 32, 32}; // bottom
-    touch_button[4] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect4));
-    float rect5[] = {176, window_height - 112 - 32, 32, 32}; // up
-    touch_button[5] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect5));
-    float rect6[] = {176, window_height - 48 - 32, 32, 32}; // down
-    touch_button[6] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect6));
-    float rect7[] = {window_width - 128 - 32, window_height - 128 - 32, 128, 128}; // touchpad
-    touch_button[7] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect7));
-    if (touch_button[7]) {
-        touch_analog[0] = (finger_x - window_width + 96)/64;
-        touch_analog[1] = (finger_y - window_height + 96)/64;
-    } else {
+    for (int j = 0; j <= 7; j++) { // set buttons & levers & dials to down
+        touch_button[j] = false;
         touch_analog[0] = 0;
         touch_analog[1] = 0;
     }
+    for (int i = 9; i >= 0; i--) { // check if any fingers are activating buttons; first finger down (descending) priority
+        bool finger_down = touch[i].finger.down;
+        if (finger_down) {
+            float finger_x = window_width * (touch[i].finger.x + touch[i].finger.dx);
+            float finger_y = window_height * (touch[i].finger.y + touch[i].finger.dy);
+            //SDL_Log("%" SDL_PRIu32 " - %.3f", i, finger_x);
+            for (int j = 0; j <= 7; j++) {
+                float rect_j[] = {rects_f[j+1].x, rects_f[j+1].y, rects_f[j+1].w, rects_f[j+1].h};
+                bool is_finger_in_rect_j = coords_in_rectf(finger_x, finger_y, rect_j);
+                if (is_finger_in_rect_j && finger_down) {
+                    touch_button[j] = true;
+                    by_finger[j] = i;
+                    //SDL_Log("%" SDL_PRIu32 " - %.3f", touch_button[j], finger_x);
+                }
+            }
+            //SDL_Log("%" SDL_PRIu32, touch_button[7]);
+            if (touch_button[7] && i == by_finger[7]) { // touchpad
+                touch_analog[0] = (finger_x - window_width + 96)/64;
+                touch_analog[1] = (finger_y - window_height + 96)/64;
+            }
+        }
+    }
     //SDL_Log("x%.3f y%.3f", touch_analog[0], touch_analog[1]);
     SDL_RenderFillRects(root_gui_renderer, rects_f, sizeof(rects_f)/sizeof(rects_f[0]));
+
+    // top touch bar:
+    float finger_x = window_width * (touch[0].finger.x + touch[0].finger.dx);
+    float finger_y = window_height * (touch[0].finger.y + touch[0].finger.dy);
     for (int i = 0; i < 5; i++) {
         SDL_FRect rect9 = {window_width - 32 - 64 * i - 32, 32, 32, 32};
         float rect9t[] = {rect9.x, rect9.y, rect9.w, rect9.h};
-        touch_button[8+i] = (touch.finger.down && coords_in_rectf(finger_x, finger_y, rect9t));
+        touch_button[8+i] = (touch[0].finger.down && coords_in_rectf(finger_x, finger_y, rect9t));
         SDL_RenderFillRect(root_gui_renderer, &rect9);
     }
+
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 63);
     SDL_FRect rect8 = {window_width - 128 - 48 + 64*(touch_analog[0]+1), window_height - 128 - 48 + 64*(touch_analog[1]+1), 32, 32};
     SDL_RenderFillRect(root_gui_renderer, &rect8);

@@ -2,6 +2,10 @@
 #define MAINLOOP_C
 
 SDL_AppResult AES_mainloop() {
+    #ifdef __EMSCRIPTEN__
+    bool fill = true;
+    SDL_SetWindowFillDocument(root_window, fill);
+    #endif
     // updating global variables;
     SDL_GetWindowSizeInPixels(root_window, &root_window_width, &root_window_height);
     if ((SDL_max(root_window_width, root_window_height) > gui_texture_res) || (SDL_max(root_window_width, root_window_height) * 2 < gui_texture_res)) {

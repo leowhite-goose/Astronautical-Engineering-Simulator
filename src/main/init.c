@@ -3,7 +3,7 @@
 
 SDL_AppResult AES_init() {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
-    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.17", "SDL3-Project");
+    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.19", "SDL3-Project");
 
     // init SDL
     SDL_Init(SDL_INIT_VIDEO); // https://wiki.libsdl.org/SDL3/SDL_Init
@@ -68,7 +68,7 @@ SDL_AppResult AES_init() {
     gui_texture_res = power_of_two(SDL_max(root_window_width, root_window_height));
     root_gui_surface =  SDL_CreateSurface(gui_texture_res, gui_texture_res, SDL_PIXELFORMAT_ABGR8888);
     root_gui_renderer = SDL_CreateSoftwareRenderer(root_gui_surface);
-    SDL_SetRenderVSync(root_gui_renderer, 1);
+    SDL_SetRenderVSync(root_gui_renderer, 0);
     glGenTextures(1, &root_gui_gl_texture);
 
     if (!window_icon_surface) {
@@ -78,15 +78,20 @@ SDL_AppResult AES_init() {
     SDL_SetWindowIcon(root_window, window_icon_surface);
     SDL_DestroySurface(window_icon_surface);
 
-    char model_file[] = "meshes/TOS-rip-FEMMeshGmsh002.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml" //"meshes/20mm-Cube-4.xml" //"meshes/TOS-rip-FEMMeshGmsh002.xml"
+    #ifndef __EMSCRIPTEN__
+    char model_file[] = "meshes/TOS-Enterprise-G14.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml"//"meshes/20mm-Cube-4.xml"//"meshes/TOS-rip-FEMMeshGmsh002.xml"//"meshes/TOS-EnterpriseG-14.xml"
+    #endif
+    #ifdef __EMSCRIPTEN__
+    char model_file[] = "meshes/TOS-rip-FEMMeshGmsh002.xml"; // fallback model, as model above has too many polygons to be rendered with EMSCRIPTEN/GL4ES(for some reason)
+    #endif
     int vertex_count;
     int tetrahedron_count;
     load_fenics_mesh(model_file, &vertex_count, &tetrahedron_count, &model_vertices, &model_tetrahedra);
     model_cell_count = tetrahedron_count;
 
-    normal_data = SDL_malloc(sizeof(float) * 36 * 8192); // max of 8192 tetrahedral elements per model*
-    color_data = SDL_malloc(sizeof(float) * 48 * 8192); // ~1.3 MiB
-    vertex_data = SDL_malloc(sizeof(float) * 36 * 8192); // 1.0 MiB
+    normal_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // max of 8192 tetrahedral elements per model*
+    color_data = SDL_malloc(sizeof(float) * 48 * 8192 * 2); // ~1.3 MiB
+    vertex_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // 1.0 MiB
 
     return SDL_APP_CONTINUE;
 }

@@ -19,6 +19,7 @@ typedef unsigned _BitInt(8) uint8;
 typedef unsigned _BitInt(16) uint16;
 typedef unsigned _BitInt(32) uint32;
 typedef unsigned _BitInt(64) uint64;
+typedef unsigned _BitInt(128) uint128;
 
 typedef struct vec2f {
     float x;

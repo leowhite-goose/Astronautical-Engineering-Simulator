@@ -18,13 +18,14 @@ int key_count;
 bool keyboard_scancode_toggled_state[SDL_SCANCODE_COUNT]; // https://wiki.libsdl.org/SDL3/SDL_Scancode
 SDL_Keymod keymod_state;
 struct mouse mouse;
-struct touch touch;
+struct touch touch[10];
 
 vec6f root_cam = {50,90,0,-70,-110,-10};
 
 // universal constants
-const float G_fp32 = 6.67430e-11; // m^3 * kg^-1 * s^-2 ; approx.
-const _BitInt(32) c_i32 = 299792458;  // m/s ; exact
+const float G_f = 6.67430e-11; // m^3 * kg^-1 * s^-2 ; approx.
+const uint32 c_i32 = 299792458;  // m/s ; exact
+const uint64 c_sq_ui64 = c_i32 * c_i32;
 
 // debug
 vec4f debug_color = {1.0, 0.7, 0.3, 0.5}; // "bubblegum pink"
@@ -37,6 +38,7 @@ vec3f p2b = {1,1,0};
 vec3f p2c = {-2,4,1};
 bool blue_overlap;
 static bool touch_button[32];
+static int8 by_finger[32];
 static float touch_analog[6];
 static int32 touch_digital[8];
 
