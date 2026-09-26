@@ -7,7 +7,7 @@ struct vec3f gravitational_force3f(vec3f pos1_3f, vec3f vel1_3f, float mass1_f, 
     vec3f dist_vec_3f = displacement_vector3f(pos1_3f, pos2_3f);
     float dist_mag_f = vector_magnitude3f(dist_vec_3f);
 
-    // Newtonian contribution (translative)
+    // Newtonian contribution
     gravitational_force_vector_3f.x = -G_f * mass1_f * mass2_f * dist_vec_3f.x / SDL_powf(dist_mag_f, 3); // https://en.wikipedia.org/wiki/Newton%27s_law_of_universal_gravitation#Vector_form
     gravitational_force_vector_3f.y = -G_f * mass1_f * mass2_f * dist_vec_3f.y / SDL_powf(dist_mag_f, 3);
     gravitational_force_vector_3f.z = -G_f * mass1_f * mass2_f * dist_vec_3f.z / SDL_powf(dist_mag_f, 3);
@@ -18,12 +18,12 @@ struct vec3f gravitational_force3f(vec3f pos1_3f, vec3f vel1_3f, float mass1_f, 
     effective_mass_f * dist_vec_3f.y * ( ((mass1_f * vel1_3f.y + mass2_f * vel2_3f.y)/(mass1_f + mass2_f)) / (pos1_3f.y * mass1_f + pos2_3f.y * mass2_f) ),
     effective_mass_f * dist_vec_3f.z * ( ((mass1_f * vel1_3f.z + mass2_f * vel2_3f.z)/(mass1_f + mass2_f)) / (pos1_3f.z * mass1_f + pos2_3f.z * mass2_f) )};
 
-    // Newtonian contribution (rotational)
+    // Newtonian contribution (centrifugal)
     gravitational_force_vector_3f.x -= (SDL_powf(angular_momentum_3f.x, 2) * dist_vec_3f.x) / (effective_mass_f * SDL_powf(dist_mag_f, 4));
     gravitational_force_vector_3f.y -= (SDL_powf(angular_momentum_3f.y, 2) * dist_vec_3f.y) / (effective_mass_f * SDL_powf(dist_mag_f, 4));
     gravitational_force_vector_3f.z -= (SDL_powf(angular_momentum_3f.z, 2) * dist_vec_3f.z) / (effective_mass_f * SDL_powf(dist_mag_f, 4));
 
-    // Swartzchild contribution
+    // Schwarzschild contribution; see Youtube video : /watch?v=N5qTCpQf4nw
     gravitational_force_vector_3f.x += (3 * G_f * (mass1_f + mass2_f) * SDL_powf(angular_momentum_3f.x, 2)) / (c_sq_ui64 * effective_mass_f * SDL_powf(dist_mag_f, 5));
     gravitational_force_vector_3f.y += (3 * G_f * (mass1_f + mass2_f) * SDL_powf(angular_momentum_3f.y, 2)) / (c_sq_ui64 * effective_mass_f * SDL_powf(dist_mag_f, 5));
     gravitational_force_vector_3f.z += (3 * G_f * (mass1_f + mass2_f) * SDL_powf(angular_momentum_3f.z, 2)) / (c_sq_ui64 * effective_mass_f * SDL_powf(dist_mag_f, 5));

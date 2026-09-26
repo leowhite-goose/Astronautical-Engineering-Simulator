@@ -1,7 +1,7 @@
 # Astronautical-Engineering-Simulator
 ---
 ## About
-This is only really on Github so I can host a website demo to show off; this is a heavy work in progress and was basically just started (for fun). The idea is that, while I learn cool engineering stuff during my mechanical engineering undergrad (e.g., thermodynamics), I can use this as a study guide of sorts by implementing what I learn here.
+This is only really on Github so I can host a website demo to show off; this is a heavy work in progress and was basically just started (for fun). The idea is that, while I learn cool engineering stuff during my mechanical engineering undergrad (e.g., thermodynamics), I can use this as a study guide of sorts by implementing what I learn, here.
 
 ## Acknowledgments
 This project uses SDL3 and GL4ES--both pretty cool projects in my opinion.
@@ -18,6 +18,7 @@ If you just want to run the program, using a machine running some typical deskto
 1. Download the entire repo, minus the minus the ".html", ".js", and ".wasm" files in the root directory
 2. Run the "AES" file like any other executable file/program (you may need to add permissions with "chmod +x ./AES" from a terminal in the downloaded folder)
 3. Load 3D FEM meshes by generating them first with NetGen or Gmsh in FreeCAD, then export them as "FEM FENICS MESH" into AES's "meshes" folder, then change "char model_file[]" to equal its file name
+4. For a "demo", see https://leowhite-goose.github.io/Astronautical-Engineering-Simulator/
 ---
 ## Compiling and Running the Program (by platform)
 ### Compiling for GNU Linux:
@@ -54,7 +55,7 @@ I just started using Github with this project and am using it to learn programmi
 
 ### Using Git (because I forget)
 Examples of basic commands:
-- git add .        <-- adds all changes
+- git add . <-- adds all changes
 - git add example.txt
 - git rm example.txt
 - git commit -m "removed example.txt"

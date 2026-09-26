@@ -1,268 +1,9 @@
-void render_mesh(meshf *mesh, vec3f position) {
-    glTranslatef(position.x, position.y, position.z);
-    glBegin(GL_TRIANGLES);
-    for (int i = 0; i < mesh->element_count; i++) {
-        glColor4f(mesh->colors[i].x, mesh->colors[i].y, mesh->colors[i].z, mesh->colors[i].w);
-        glNormal3f(mesh->normals[i].x, mesh->normals[i].y, mesh->normals[i].z);
-        glVertex3f(mesh->vertices[i].x, mesh->vertices[i].y, mesh->vertices[i].z);
-    }
-    glEnd();
-    glTranslatef(-position.x, -position.y, -position.z);
-}
-
-vec3f generate_normal(vec32i3f a1, vec32i3f b1, vec32i3f c1) {
-    vec3f a2 = {a1.x, a1.y, a1.z};
-    vec3f b2 = {b1.x, b1.y, b1.z};
-    vec3f c2 = {c1.x, c1.y, c1.z};
-
-    vec3f normal = triangle_normal3f(a2, b2, c2);
-    normal = unit_vector3f(normal);
-    return normal;
-}
-
-void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, int32 cell_count, vec3f position, bool debug) {
-    glTranslatef(position.x, position.y, position.z);
-    if (!debug) {glEnable(GL_CULL_FACE); glCullFace(GL_BACK);}
-
-    /*int VBO;
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);*/
-
-    for (int i = 0; i < cell_count; i++) {
-        vec3f normal0 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].y]);
-        vec3f normal1 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].x]); // flipped
-        vec3f normal2 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].z]);
-        vec3f normal3 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].b]); // flipped
-        float temp_normal_data[36] = {
-            normal0.x, normal0.y, normal0.z, // v0 v1 v2
-            normal0.x, normal0.y, normal0.z,
-            normal0.x, normal0.y, normal0.z,
-
-            normal1.x, normal1.y, normal1.z, // v3 v2 v1
-            normal1.x, normal1.y, normal1.z,
-            normal1.x, normal1.y, normal1.z,
-
-            normal2.x, normal2.y, normal2.z, // v0 v2 v3
-            normal2.x, normal2.y, normal2.z,
-            normal2.x, normal2.y, normal2.z,
-
-            normal3.x, normal3.y, normal3.z, // v3
-            normal3.x, normal3.y, normal3.z, // v1
-            normal3.x, normal3.y, normal3.z  // v0
-        };
-        float transparency_;
-        if (debug) {
-            transparency_ = 0.5;
-        } else {
-            transparency_ = 1.0;
-        }
-        float temp_color_data[48] = {
-            1.0,0.0,0.0,transparency_,
-            1.0,0.0,0.0,transparency_,
-            1.0,0.0,0.0,transparency_,
-
-            0.0,1.0,0.0,transparency_,
-            0.0,1.0,0.0,transparency_,
-            0.0,1.0,0.0,transparency_,
-
-            0.0,0.0,1.0,transparency_,
-            0.0,0.0,1.0,transparency_,
-            0.0,0.0,1.0,transparency_,
-
-            1.0,0.0,1.0,transparency_,
-            1.0,0.0,1.0,transparency_,
-            1.0,0.0,1.0,transparency_
-        };
-        float temp_vertex_data[36] = {
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, // v0
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, // v1
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, // v2
-
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, // v3
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, // v2
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, // v1
-
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, // v0
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, // v2
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, // v3
-
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, // v3
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, // v1
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z  // v0
-        };
-        for (int j = 0; j < 36; j++) {
-            normal_data[j + 36 * i] = temp_normal_data[j];
-        }
-        for (int j = 0; j < 48; j++) {
-            color_data[j + 48 * i] = temp_color_data[j];
-        }
-        for (int j = 0; j < 36; j++) {
-            vertex_data[j + 36 * i] = temp_vertex_data[j];
-        }
-    }
-    glNormalPointer(GL_FLOAT, 0, normal_data);
-
-    glColorPointer(4, GL_FLOAT, 0, color_data);
-
-    glVertexPointer(3, GL_FLOAT, 0, vertex_data);
-
-    glEnableClientState(GL_NORMAL_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glDrawArrays(GL_TRIANGLES, 0, 12 * cell_count);
-    glDisableClientState(GL_NORMAL_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
-    glDisableClientState(GL_VERTEX_ARRAY);
-
-    /*glDisableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);*/
-
-    if (!debug) {glDisable(GL_CULL_FACE);}
-    glTranslatef(-position.x, -position.y, -position.z);
-}
-
-void generate_normals(meshf *mesh) {
-    if (mesh->element_count % 3 == 0) {
-        int triangle_count = mesh->element_count / 3;
-        for (int i = 0; i < triangle_count; i++) {
-            vec3f normal = triangle_normal3f(mesh->vertices[3*i + 0], mesh->vertices[3*i + 1], mesh->vertices[3*i + 2]);
-            normal = unit_vector3f(normal);
-
-            mesh->normals[3*i + 0] = normal;
-            mesh->normals[3*i + 1] = normal;
-            mesh->normals[3*i + 2] = normal;
-        }
-    }
-}
-
-void generate_bounding_box(meshf *mesh) {
-    for (int i = 0; i < (mesh->element_count); i++) {
-        if (mesh->vertices[i].x < (mesh->bounding_box.a)) {
-            mesh->bounding_box.a = mesh->vertices[i].x;
-
-        } else if (mesh->vertices[i].x > (mesh->bounding_box.x)) {
-            mesh->bounding_box.x = mesh->vertices[i].x;
-        }
-        if (mesh->vertices[i].y < (mesh->bounding_box.b)) {
-            mesh->bounding_box.b = mesh->vertices[i].y;
-        } else if (mesh->vertices[i].y > (mesh->bounding_box.y)) {
-            mesh->bounding_box.y = mesh->vertices[i].y;
-        }
-        if (mesh->vertices[i].z < (mesh->bounding_box.c)) {
-            mesh->bounding_box.c = mesh->vertices[i].z;
-        } else if (mesh->vertices[i].z > (mesh->bounding_box.z)) {
-            mesh->bounding_box.z = mesh->vertices[i].z;
-        }
-    }
-}
-
-void transform_mesh(meshf *mesh, vec3f transform_point, vec3f scale, vec3f rotate, vec3f translate) { // scales then rotates then translates
-    for (int i = 0; i < mesh->element_count; i++) {
-
-        mesh->vertices[i] = vector_addition3f(mesh->vertices[i], translate);
-    }
-    generate_normals(mesh);
-}
-
-void expand_mesh(meshf *addition, meshf *mesh) {
-    int old_element_count = mesh->element_count;
-    mesh->element_count += addition->element_count;
-    mesh->vertices = SDL_realloc(mesh->vertices, sizeof(vec3f) * mesh->element_count);
-    mesh->normals = SDL_realloc(mesh->normals, sizeof(vec3f) * mesh->element_count);
-    mesh->colors = SDL_realloc(mesh->colors, sizeof(vec3f) * mesh->element_count);
-    int j = 0;
-    for (int i = old_element_count; i < (mesh->element_count); i++) {
-        mesh->vertices[i] = addition->vertices[j];
-        mesh->normals[i] = addition->normals[j];
-        mesh->colors[i] = addition->colors[j];
-        j++;
-    }
-}
-
-void shrink_mesh(int reduction, meshf *mesh) {
-
-}
-
-void set_mesh_color(vec4f color, meshf *mesh) {
-    for (int i = 0; i < (mesh->element_count); i++) {
-        mesh->colors[i] = color;
-    }
-}
-
-void create_grid() {
-
-}
-
-meshf *create_UV_sphere_mesh(float radius, int sph_h, int sph_v) { // have this return a mesh instead (modify)
-    if (sph_h >= 3 && sph_v >= 2) {
-        int triangle_count = 2 * sph_h + (sph_v-2) * sph_h * 2;
-        int vertex_count = triangle_count * 3;
-        meshf *mesh = SDL_malloc(sizeof(meshf));
-        mesh->element_count = vertex_count;
-        mesh->vertices = SDL_malloc(sizeof(vec3f) * mesh->element_count);
-        mesh->normals = SDL_malloc(sizeof(vec3f) * mesh->element_count);
-        mesh->colors = SDL_malloc(sizeof(vec4f) * mesh->element_count);
-        float p_loop_r;
-        float loop_r;
-        loop_r = radius * SDL_sinf(SDL_PI_F/sph_v); // sph_v = 6 --> r = 0.5
-        for (int i = 0; i < sph_h; i++) { // top loop
-            vec3f vert1 = {0, 0, radius};
-            vec3f vert2 = {loop_r * SDL_sinf(2*(i-1)*SDL_PI_F/sph_h), loop_r * SDL_cosf(2*(i-1)*SDL_PI_F/sph_h), radius * SDL_cosf(SDL_PI_F/sph_v)};
-            vec3f vert3 = {loop_r * SDL_sinf(2*(i)*SDL_PI_F/sph_h), loop_r * SDL_cosf(2*(i)*SDL_PI_F/sph_h), radius * SDL_cosf(SDL_PI_F/sph_v)};
-
-            mesh->vertices[3*i + 0] = vert1;
-            mesh->vertices[3*i + 1] = vert2;
-            mesh->vertices[3*i + 2] = vert3;
-        }
-        for (int i = sph_h; i < 2*sph_h; i++) { // bottom loop
-            vec3f vert1 = {0, 0, -radius};
-            vec3f vert2 = {loop_r * SDL_sinf(2*(i)*SDL_PI_F/sph_h), loop_r * SDL_cosf(2*(i)*SDL_PI_F/sph_h), -radius * SDL_cosf(SDL_PI_F/sph_v)};
-            vec3f vert3 = {loop_r * SDL_sinf(2*(i-1)*SDL_PI_F/sph_h), loop_r * SDL_cosf(2*(i-1)*SDL_PI_F/sph_h), -radius * SDL_cosf(SDL_PI_F/sph_v)};
-
-            mesh->vertices[3*i + 0] = vert1;
-            mesh->vertices[3*i + 1] = vert2;
-            mesh->vertices[3*i + 2] = vert3;
-        }
-        for (int j = 2; j < sph_v; j++) { // "2" because of top&bottom triangle "caps" to UV sphere, so discounting those loops
-            p_loop_r = radius * SDL_sinf((j-1)*SDL_PI_F/sph_v);
-            loop_r = radius * SDL_sinf((j)*SDL_PI_F/sph_v);
-            for (int i = 0; i < sph_h; i++) {
-                vec3f vert1 = {p_loop_r * SDL_sinf(2*(i)*SDL_PI_F/sph_h), p_loop_r * SDL_cosf(2*(i)*SDL_PI_F/sph_h), radius * SDL_cosf((j-1)*SDL_PI_F/sph_v)};
-                vec3f vert2 = {p_loop_r * SDL_sinf(2*(i-1)*SDL_PI_F/sph_h), p_loop_r * SDL_cosf(2*(i-1)*SDL_PI_F/sph_h), radius * SDL_cosf((j-1)*SDL_PI_F/sph_v)};
-                vec3f vert3 = {loop_r * SDL_sinf(2*(i)*SDL_PI_F/sph_h), loop_r * SDL_cosf(2*(i)*SDL_PI_F/sph_h), radius * SDL_cosf((j)*SDL_PI_F/sph_v)};
-
-                vec3f vert4 = {loop_r * SDL_sinf(2*(i)*SDL_PI_F/sph_h), loop_r * SDL_cosf(2*(i)*SDL_PI_F/sph_h), radius * SDL_cosf((j)*SDL_PI_F/sph_v)};
-                vec3f vert5 = {p_loop_r * SDL_sinf(2*(i-1)*SDL_PI_F/sph_h), p_loop_r * SDL_cosf(2*(i-1)*SDL_PI_F/sph_h), radius * SDL_cosf((j-1)*SDL_PI_F/sph_v)};
-                vec3f vert6 = {loop_r * SDL_sinf(2*(i-1)*SDL_PI_F/sph_h), loop_r * SDL_cosf(2*(i-1)*SDL_PI_F/sph_h), radius * SDL_cosf((j)*SDL_PI_F/sph_v)};
-
-                int prev_tris = 2*sph_h + (j-2)*sph_h*2;
-
-                mesh->vertices[prev_tris*3 + 3*(2*i) + 0] = vert1;
-                mesh->vertices[prev_tris*3 + 3*(2*i) + 1] = vert2;
-                mesh->vertices[prev_tris*3 + 3*(2*i) + 2] = vert3;
-
-                mesh->vertices[prev_tris*3 + 3*(2*i+1) + 0] = vert4;
-                mesh->vertices[prev_tris*3 + 3*(2*i+1) + 1] = vert5;
-                mesh->vertices[prev_tris*3 + 3*(2*i+1) + 2] = vert6;
-            }
-        }
-        generate_normals(mesh);
-        generate_bounding_box(mesh);
-        set_mesh_color(debug_color, mesh);
-        return mesh;
-    } else {
-        SDL_Log("Failed to create UV sphere mesh (impossible splicing parameters)");
-        return NULL;
-    }
-}
-
-void load_fenics_mesh(char *rel_file_path, int *out_vertex_count, int *out_tetrahedron_count, vec32i3f **vertices, vec5i32 **tetrahedra) {
+void load_fenics_mesh(char *rel_file_path, int32 *out_vertex_count, int32 *out_tetrahedron_count, int32 *out_triangle_count, vec32i3f **vertf, vec32i3d **vertd, vec32i3i128 **vert128, vec5i32 **tetrahedra, vec4i32 **triangles, uint32 *tri_index_cnt) {
     char *file_path = NULL;
     SDL_asprintf(&file_path, "%s" "%s", SDL_GetBasePath(), rel_file_path);
     char *raw_data = SDL_LoadFile(file_path, NULL);
     int file_char_count = SDL_strlen(raw_data);
-    SDL_Log("%" SDL_PRIu32 " characters loaded from file", file_char_count);
+    SDL_Log("%" SDL_PRIu32 " characters loaded from file : \"%s\"", file_char_count, file_path);
     int char_cursor = 0;
     int line_index = 0;
     int line_char = 0;
@@ -302,10 +43,13 @@ void load_fenics_mesh(char *rel_file_path, int *out_vertex_count, int *out_tetra
                 number_string[digit_count] = '\0';
                 digit_count = 0;
                 raw_vertex_count = SDL_atoi(number_string);
-                SDL_Log("%" SDL_PRIu32, raw_vertex_count);
+                SDL_Log("Vertex Count : %" SDL_PRIu32, raw_vertex_count);
+                (*tri_index_cnt) = raw_vertex_count;
                 vertices_revert_char_index = char_cursor;
                 vertices_revert_line_index = line_index;
-                *vertices = (vec32i3f *) SDL_malloc(sizeof(vec32i3f) * raw_vertex_count); // Note
+                *vertf = (vec32i3f *) SDL_malloc(sizeof(vec32i3f) * raw_vertex_count); // Note (?)
+                *vertd = (vec32i3d *) SDL_malloc(sizeof(vec32i3d) * raw_vertex_count);
+                *vert128 = (vec32i3i128 *) SDL_malloc(sizeof(vec32i3i128) * raw_vertex_count);
             }
 
             // determining tetrahedra count
@@ -323,6 +67,7 @@ void load_fenics_mesh(char *rel_file_path, int *out_vertex_count, int *out_tetra
                 digit_count = 0;
                 tetrahedron_count = SDL_atoi(number_string);
                 *tetrahedra = (vec5i32 *) SDL_malloc(sizeof(vec5i32) * tetrahedron_count);
+                *triangles = (vec4i32 *) SDL_malloc(sizeof(vec4i32) * tetrahedron_count * 4);
             }
 
             // tetrahedra
@@ -418,16 +163,16 @@ void load_fenics_mesh(char *rel_file_path, int *out_vertex_count, int *out_tetra
                                 is_number = false;
                                 number_string[digit_count] = '\0';
                                 if (j == 0) {
-                                    (*vertices)[i].i = SDL_atoi(number_string);
+                                    (*vertd)[i].w = SDL_atoi(number_string);
                                 }
                                 if (j == 1) {
-                                    (*vertices)[i].x = SDL_atof(number_string);
+                                    (*vertd)[i].x = SDL_strtod(number_string, NULL);
                                 }
                                 if (j == 2) {
-                                    (*vertices)[i].y = SDL_atof(number_string);
+                                    (*vertd)[i].y = SDL_strtod(number_string, NULL);
                                 }
                                 if (j == 3) {
-                                    (*vertices)[i].z = SDL_atof(number_string);
+                                    (*vertd)[i].z = SDL_strtod(number_string, NULL);
                                 }
                             } else {
                                 number_string[digit_count] = raw_data[char_cursor];
@@ -453,41 +198,208 @@ void load_fenics_mesh(char *rel_file_path, int *out_vertex_count, int *out_tetra
 
         char_cursor++;
     }
-    int jack = 2184;
-    SDL_Log("%" SDL_PRIu32 " %" SDL_PRIu32 " %" SDL_PRIu32 " %" SDL_PRIu32 " %" SDL_PRIu32, (unsigned int) (*tetrahedra)[jack].a, (unsigned int) (*tetrahedra)[jack].b, (unsigned int) (*tetrahedra)[jack].x, (unsigned int) (*tetrahedra)[jack].y, (unsigned int) (*tetrahedra)[jack].z);
+    for (int i = 0; i < tetrahedron_count; i++) {
+        (*triangles)[4*i + 0].w = 4*i + 0;
+        (*triangles)[4*i + 0].x = (*tetrahedra)[i].b; // v0
+        (*triangles)[4*i + 0].y = (*tetrahedra)[i].x; // v1
+        (*triangles)[4*i + 0].z = (*tetrahedra)[i].y; // v2
 
-    int black = 392;
-    SDL_Log("%" SDL_PRIu32 " %.3f" " %.3f" " %.3f", (unsigned int) (*vertices)[black].i, (*vertices)[black].x, (*vertices)[black].y, (*vertices)[black].z);
+        (*triangles)[4*i + 1].w = 4*i + 1;
+        (*triangles)[4*i + 1].x = (*tetrahedra)[i].z; // v3
+        (*triangles)[4*i + 1].y = (*tetrahedra)[i].y; // v2
+        (*triangles)[4*i + 1].z = (*tetrahedra)[i].x; // v1
+
+        (*triangles)[4*i + 2].w = 4*i + 2;
+        (*triangles)[4*i + 2].x = (*tetrahedra)[i].b; // v0
+        (*triangles)[4*i + 2].y = (*tetrahedra)[i].y; // v2
+        (*triangles)[4*i + 2].z = (*tetrahedra)[i].z; // v3
+
+        (*triangles)[4*i + 3].w = 4*i + 3;
+        (*triangles)[4*i + 3].x = (*tetrahedra)[i].z; // v3
+        (*triangles)[4*i + 3].y = (*tetrahedra)[i].x; // v1
+        (*triangles)[4*i + 3].z = (*tetrahedra)[i].b; // v0
+    }
+    //SDL_Log("hmm %" SDL_PRIu32, (*triangles)[5].y);
+    //int jack = 2184;
+    //SDL_Log("%" SDL_PRIu32 " %" SDL_PRIu32 " %" SDL_PRIu32 " %" SDL_PRIu32 " %" SDL_PRIu32, (unsigned int) (*tetrahedra)[jack].a, (unsigned int) (*tetrahedra)[jack].b, (unsigned int) (*tetrahedra)[jack].x, (unsigned int) (*tetrahedra)[jack].y, (unsigned int) (*tetrahedra)[jack].z);
+
+    //int black = 392;
+    //SDL_Log("%" SDL_PRIu32 " %.3f" " %.3f" " %.3f", (unsigned int) (*vertices)[black].i, (*vertices)[black].x, (*vertices)[black].y, (*vertices)[black].z);
 
     (*out_tetrahedron_count) = tetrahedron_count;
     (*out_vertex_count) = raw_vertex_count;
+    (*out_triangle_count) = tetrahedron_count * 4;
 
     SDL_free(number_string);
     SDL_free(raw_data);
     SDL_free(file_path);
 }
 
-void connect_mesh(vec32i3f **nodes, vec5i32 **cells, int vertex_count, int node_count, int32 **nodes_in_cells) {
-    /*
-    v 0 = i x y z
-    t0 = i v0 v1 v2 v3
+void vertd_to_vert128_scaled(int32 *vertex_count, vec32i3d **vertd, vec32i3i128 **vert128, double scale) {
+    for (int i = 0; i < (*vertex_count); i++) {
+        double tmp_x = (double) (*vertd)[i].x * scale;
+        double tmp_y = (double) (*vertd)[i].y * scale;
+        double tmp_z = (double) (*vertd)[i].z * scale;
+        (*vert128)[i].x = (int128) tmp_x;
+        (*vert128)[i].y = (int128) tmp_y;
+        (*vert128)[i].z = (int128) tmp_z;
+        //SDL_Log("HYI - %.3f", (float) (*vert128)[i].x);
+    }
+    //SDL_Log("HYI - %.3f", (float) (*vert128)[6].x);
+    return;
+}
 
-    vert[i] = length t0 t1 t2 ... tn
-    */
-    /*SDL_free(nodes_in_cells); // just in case
-    *nodes_in_cells = SDL_malloc(sizeof(*int32) * vertex_count); // array of pointers
-    int32 node0, node1, node2, node3;
-    for (int i = 0; i < node_count; i++) {
-        node0 = *cells[i].b;
-        if (nodes_in_cells[node0] == NULL) {
-            nodes_in_cells[node0] = SDL_malloc(sizeof(int32) * 2);
-            nodes_in_cells[node0][0] = 2; // number of entries in this (above pointer)'s array
-            nodes_in_cells[node0][1] = i; // note offset
+void vert128_translate(int32 *vertex_count, vec32i3i128 **vert128, vec3i128 translate) {
+    for (int i = 0; i < (*vertex_count); i++) {
+        (*vert128)[i].x = (int128) (*vert128)[i].x + translate.x;
+        (*vert128)[i].y = (int128) (*vert128)[i].y + translate.y;
+        (*vert128)[i].z = (int128) (*vert128)[i].z + translate.z;
+    }
+    return;
+}
+
+void vert128_to_verf(int32 *vertex_count, vec32i3i128 **vert128, vec32i3f **vertf) {
+    //SDL_Log("%" SDL_PRIu32, (*vertex_count));
+    for (int i = 0; i < (*vertex_count); i++) {
+        (*vertf)[i].x = (float) (*vert128)[i].x;
+        (*vertf)[i].y = (float) (*vert128)[i].y;
+        (*vertf)[i].z = (float) (*vert128)[i].z;
+    }
+    return;
+}
+
+void sort3i32(int32 *a, int32 *b, int32 *c) { // 1, 2, ... (increasing order); abc, acb, cab, bac, bca, cba
+    if ((a < b) && (b < c)) {           // abc
+        return;
+    } else if ((a < c) && (c < b)) {    // acb ; to-do tree optimize?
+        (*a) = (*a);
+        (*b) = (*c);
+        (*c) = (*b);
+        return;
+    } else if ((c < a) && (a < b)) {    // cab
+        (*a) = (*c);
+        (*b) = (*a);
+        (*c) = (*b);
+        return;
+    } else if ((b < a) && (a < c)) {    // bac
+        (*a) = (*b);
+        (*b) = (*a);
+        (*c) = (*c);
+        return;
+    } else if ((b < c) && (c < a)) {    // bca
+        (*a) = (*b);
+        (*b) = (*c);
+        (*c) = (*a);
+        return;
+    } else if ((c < b) && (b < a)) {    // cba
+        (*a) = (*c);
+        (*b) = (*b);
+        (*c) = (*a);
+        return;
+    } else {
+        return; // shouldn't happen
+    }
+}
+
+int comp(const void *a, const void *b) { // https://www.geeksforgeeks.org/c/qsort-function-in-c/
+    int x = *(const int *)a;
+    int y = *(const int *)b;
+
+    if (x < y)
+        return -1;
+    if (x > y)
+        return 1;
+    return 0;
+}
+
+//int SDLCALL compare(const void *a, const void *b) // https://wiki.libsdl.org/SDL3/SDL_qsort
+
+void remove_shared_faces (int32 triangle_count, vec4i32 **triangles) {
+    vec4i32 ordered_triangle_values[triangle_count];
+    int32 triangle_ids[triangle_count*3];
+    int48 triangle_prime_ids[triangle_count];
+    //vec3i32 primes = {32771, 32779, 32783}; // must be fewer than just over 2^15 triangles; http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
+    vec3i32 primes = {2097169, 2097211, 2097223}; // 2097169 2^21
+    for (int i = 0; i < triangle_count; i++) {
+        int32 id = (*triangles)[i].w;
+        int32 a = (*triangles)[i].x;
+        int32 b = (*triangles)[i].y;
+        int32 c = (*triangles)[i].z;
+        sort3i32(&a, &b, &c);
+        triangle_prime_ids[i] = a*primes.x + b*primes.y + c*primes.z;
+        /*ordered_triangle_values[i].w = id;
+        ordered_triangle_values[i].x = a;
+        ordered_triangle_values[i].y = b;
+        ordered_triangle_values[i].z = c;*/
+        //SDL_Log("%" SDL_PRIu32 "J0 - %" SDL_PRIu64, i, triangle_ids[i]);
+        //triangle_ids[i] = (int128) a + b<<35 + c<<67; //a,b,c need to be positive; padding = 3*
+        triangle_ids[3*i + 0] = a;
+        triangle_ids[3*i + 2] = b;
+        triangle_ids[3*i + 1] = c;
+        //SDL_Log("%" SDL_PRIu32 "Jabc - %" SDL_PRIu64, i, triangle_ids[i] - b<<35 - a - c<<67);
+    } // all sets of same numbers are now identical: {1,2,3},{3,1,2} --> {1,2,3},{1,2,3} <-- both have same "id"
+    char *triangleidchar;
+    triangleidchar = (char *) triangle_ids;
+    SDL_qsort(triangle_ids, triangle_count, sizeof(triangle_ids[0]*3), comp);
+    int ch;
+    while (ch < triangle_count - 1) {
+        int96 triangle_id_1;
+        int96 triangle_id_2;
+        triangle_id_1 = (int96) *(triangle_ids + ch);
+        triangle_id_2 = (int96) *(triangle_ids + ch + 1);
+        if (triangle_id_1 == triangle_id_2) {
+            if (triangle_id_1 >= 0) {
+                triangle_id_1 = -triangle_id_1 - 1;
+                //SDL_Log("%" SDL_PRIs32, i);
+                SDL_Log("i1;%" SDL_PRIs32 " - %" SDL_PRIs32, ch, triangle_id_1);
+            }
+            if (triangle_id_2 >= 0) {
+                triangle_id_2 = -triangle_id_2 - 1;
+                //SDL_Log("%" SDL_PRIs32, i);
+                SDL_Log("i2;%" SDL_PRIs32 " - %" SDL_PRIs32, ch, triangle_id_1);
+            }
+            ch += 2;
         } else {
-            SDL_realloc(nodes_in_cells[node0], sizeof(int32) * nodes_in_cells);
+            ch++;
         }
-        node1 = *cells[i].x;
-        node2 = *cells[i].y;
-        node3 = *cells[i].z;
+    }
+    /*for (int i = 0; i < triangle_count - 1; i++) { // moving window
+        //SDL_Log("i - %" SDL_PRIu32 "; id - %" SDL_PRIu32, i, triangle_prime_ids[i]);
+        if ((triangle_prime_ids[i] == triangle_prime_ids[i+1]) || (triangle_prime_ids[i] == -triangle_prime_ids[i+1] - 1)) {
+            if (triangle_prime_ids[i] >= 0) {
+                triangle_prime_ids[i] = -triangle_prime_ids[i] - 1;
+                //SDL_Log("%" SDL_PRIs32, i);
+                SDL_Log("i1;%" SDL_PRIs32 " - %" SDL_PRIs32, i, triangle_prime_ids[i]);
+            }
+            if (triangle_prime_ids[i+1] >= 0) {
+                triangle_prime_ids[i+1] = -triangle_prime_ids[i+1] - 1;
+                //SDL_Log("%" SDL_PRIs32, i);
+                SDL_Log("i2;%" SDL_PRIs32 " - %" SDL_PRIs32, i, triangle_prime_ids[i]);
+            }
+        }
     }*/
+    for (int i = 0; i < triangle_count; i++) {
+        int32 id = (*triangles)[i].w;
+        int32 a = (*triangles)[i].x;
+        int32 b = (*triangles)[i].y;
+        int32 c = (*triangles)[i].z;
+        sort3i32(&a, &b, &c);
+        //int48 triangle_prime_id = -a*primes.x + b*primes.y + c*primes.z;
+        //int128 triangle_id = (int128) a;
+        //triangle_id += (int128) b<<35;
+        //triangle_id += (int128) c<<67;
+        int32 triangle_id32[3];
+        triangle_id32[0] = a;
+        triangle_id32[1] = b;
+        triangle_id32[2] = c;
+        int96 triangle_id;
+        triangle_id = (int96) *(triangle_ids);
+        for (int j = 0; j < triangle_count; j++) { //(O(n^yikes))
+            int96 triangle_id_j = (int96) *(triangle_ids + j);
+            if ((-triangle_id - 1 == triangle_id_j) && (id >= 0)) {
+                (*triangles)[i].w = -i - 1;
+                SDL_Log("t: %" SDL_PRIs32, (*triangles)[i].w);
+            }
+        }
+    }
 }

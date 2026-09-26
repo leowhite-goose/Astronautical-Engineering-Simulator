@@ -2,6 +2,7 @@
 #define MAINLOOP_C
 
 SDL_AppResult AES_mainloop() {
+    static uint64 last_fps;
     #ifdef __EMSCRIPTEN__
     bool fill = true;
     SDL_SetWindowFillDocument(root_window, fill);
@@ -9,7 +10,7 @@ SDL_AppResult AES_mainloop() {
     // updating global variables;
     SDL_GetWindowSizeInPixels(root_window, &root_window_width, &root_window_height);
     if ((SDL_max(root_window_width, root_window_height) > gui_texture_res) || (SDL_max(root_window_width, root_window_height) * 2 < gui_texture_res)) {
-        gui_texture_res = power_of_two(SDL_max(root_window_width, root_window_height));
+        gui_texture_res = power_of_two(SDL_max(root_window_width, root_window_height)); // account for max supported resolution, like with webgl for browsers
         SDL_DestroySurface(root_gui_surface);
         root_gui_surface =  SDL_CreateSurface(gui_texture_res, gui_texture_res, SDL_PIXELFORMAT_ABGR8888);
         SDL_DestroyRenderer(root_gui_renderer);
@@ -36,11 +37,11 @@ SDL_AppResult AES_mainloop() {
     }
     //bool is_fullscreen = key_toggle(SDL_SCANCODE_F11);
     bool pan_camera = (mouse.right.toggle || touch_button[7]) && (root_window == SDL_GetMouseFocus());
-    static int cam_speed = 5;
+    static int cam_speed = 35;
     static int pan_sensitivity = -2;
     if (mouse.scrolling && key_down(SDL_SCANCODE_LSHIFT)) {cam_speed += mouse.wheel.y;}
     if (mouse.scrolling && key_down(SDL_SCANCODE_LCTRL)) {pan_sensitivity += mouse.wheel.y;}
-    float cam_vel = SDL_pow(2,cam_speed)/60;
+    float cam_vel = SDL_pow(2,cam_speed)/last_fps;
     float pan_x, pan_y;
     if (!touch_button[7]) {
         pan_x = mouse.x_rel * SDL_pow(2,pan_sensitivity/4);
@@ -93,14 +94,38 @@ SDL_AppResult AES_mainloop() {
     }
 
     // 2D rendering (GUI overlay)
-    static uint64 last_fps;
     onscreen_overlay(cam_speed, pan_sensitivity, last_fps, last_tps, root_window_width, root_window_height);
 
     // 3D rendering
-    //SDL_GL_MakeCurrent(root_window, root_gl_context);   // restores gl_context
     SDL_GL_SetSwapInterval(vsync);
     render3D(root_window_width, root_window_height, root_cam);
-    //SDL_FlushRenderer(root_renderer);                   // rids of gl_context
+
+    // draw a rectangle
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    float vertices[] = {
+        0.5f,  0.5f, 0.0f,  // top right
+        0.5f, -0.5f, 0.0f,  // bottom right
+        -0.5f, -0.5f, 0.0f,  // bottom left
+        -0.5f,  0.5f, 0.0f   // top left
+    };
+    unsigned int indices[] = {
+        0, 1, 3,  // first triangle
+        1, 2, 3   // second triangle
+    };
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    glUseProgram(shader_program);
+    glBindVertexArray(vao);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
 
     glFlush(); // note
     SDL_GL_SwapWindow(root_window);

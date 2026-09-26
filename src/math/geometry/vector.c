@@ -6,6 +6,11 @@ float vector_magnitude3f(vec3f vect1) {
     return magnitude; // i.e., distance
 }
 
+double vector_magnitude3d(vec3d vect1) {
+    double magnitude = SDL_sqrt(SDL_pow(vect1.x,2)+SDL_pow(vect1.y,2)+SDL_pow(vect1.z,2));
+    return magnitude; // i.e., distance
+}
+
 vec3f displacement_vector3f(vec3f vect1, vec3f vect2) {
     vec3f vect0;
     vect0.x = vect2.x - vect1.x;
@@ -23,8 +28,22 @@ vec3f unit_vector3f(vec3f vect1) {
     return vect0;
 }
 
+vec3d unit_vector3d(vec3d vect1) {
+    vec3d vect0;
+    double magnitude1 = vector_magnitude3d(vect1);
+    vect0.x = vect1.x / magnitude1;
+    vect0.y = vect1.y / magnitude1;
+    vect0.z = vect1.z / magnitude1;
+    return vect0;
+}
+
 vec3f cross_product3f(vec3f A, vec3f B) {
     vec3f vect0 = {(A.y)*(B.z) - (A.z)*(B.y), (A.z)*(B.x) - (A.x)*(B.z), (A.x)*(B.y) - (A.y)*(B.x)};
+    return vect0;
+}
+
+vec3d cross_product3d(vec3d A, vec3d B) {
+    vec3d vect0 = {(A.y)*(B.z) - (A.z)*(B.y), (A.z)*(B.x) - (A.x)*(B.z), (A.x)*(B.y) - (A.y)*(B.x)};
     return vect0;
 }
 
@@ -44,6 +63,14 @@ vec3f vector_subtract3f(vec3f vect1, vec3f vect2) {
     return vect0;
 }
 
+vec3d vector_subtract3d(vec3d vect1, vec3d vect2) {
+    vec3d vect0;
+    vect0.x = vect1.x - vect2.x;
+    vect0.y = vect1.y - vect2.y;
+    vect0.z = vect1.z - vect2.z;
+    return vect0;
+}
+
 vec3f vector_scale3f(vec3f vect1, float scale) {
     vec3f vect0;
     vect1.x = vect1.x * scale;
@@ -56,6 +83,13 @@ vec3f triangle_normal3f(vec3f A, vec3f B, vec3f C) {
     vec3f vect1 = vector_subtract3f(B, A);
     vec3f vect2 = vector_subtract3f(C, B);
     vec3f normal = cross_product3f(vect1, vect2); // only needs 2 out of 3 vectors/vertices
+    return normal;
+}
+
+vec3d triangle_normal3d(vec3d A, vec3d B, vec3d C) {
+    vec3d vect1 = vector_subtract3d(B, A);
+    vec3d vect2 = vector_subtract3d(C, B);
+    vec3d normal = cross_product3d(vect1, vect2); // only needs 2 out of 3 vectors/vertices
     return normal;
 }
 
@@ -210,5 +244,26 @@ bool triangle_triangle_collisionf(vec3f point1a, vec3f point1b, vec3f point1c, v
 
     return (bool) triangles_collide;
 }
+
+vec3f generate_normal(vec32i3f a1, vec32i3f b1, vec32i3f c1) {
+    vec3f a2 = {a1.x, a1.y, a1.z};
+    vec3f b2 = {b1.x, b1.y, b1.z};
+    vec3f c2 = {c1.x, c1.y, c1.z};
+
+    vec3f normal = triangle_normal3f(a2, b2, c2);
+    normal = unit_vector3f(normal);
+    return normal;
+}
+
+vec3d generate_normald(vec32i3f a1, vec32i3f b1, vec32i3f c1) {
+    vec3d a2 = {a1.x, a1.y, a1.z};
+    vec3d b2 = {b1.x, b1.y, b1.z};
+    vec3d c2 = {c1.x, c1.y, c1.z};
+
+    vec3d normal = triangle_normal3d(a2, b2, c2);
+    normal = unit_vector3d(normal);
+    return normal;
+}
+
 
 #endif

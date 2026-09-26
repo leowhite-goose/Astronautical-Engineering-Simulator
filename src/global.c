@@ -20,7 +20,9 @@ SDL_Keymod keymod_state;
 struct mouse mouse;
 struct touch touch[10];
 
-vec6f root_cam = {50,90,0,-70,-110,-10};
+#define SCALE 1e9
+vec3f3i128 root_cam = {45,75,0,-67*SCALE,-60*SCALE,-27*SCALE};
+//vec3f3i128 cam_pos = {};
 
 // universal constants
 const float G_f = 6.67430e-11; // m^3 * kg^-1 * s^-2 ; approx.
@@ -30,12 +32,12 @@ const uint64 c_sq_ui64 = c_i32 * c_i32;
 // debug
 vec4f debug_color = {1.0, 0.7, 0.3, 0.5}; // "bubblegum pink"
 float global_fp;
-vec3f p1a = {0,0,0};
-vec3f p1b = {0,1,0};
-vec3f p1c = {0.5,1,1};
-vec3f p2a = {1,0,0};
-vec3f p2b = {1,1,0};
-vec3f p2c = {-2,4,1};
+vec3f p1a = {-100,0,0};
+vec3f p1b = {-100,1,0};
+vec3f p1c = {-100.5,1,1};
+vec3f p2a = {-99,0,0};
+vec3f p2b = {-99,1,0};
+vec3f p2c = {-102,4,1};
 bool blue_overlap;
 static bool touch_button[32];
 static int8 by_finger[32];
@@ -44,10 +46,7 @@ static int32 touch_digital[8];
 
 // world
 SDL_Thread *physics_thread;
-mesh128i (*universe)[0];
-int32 model_cell_count;
-vec32i3f *model_vertices = NULL;
-vec5i32 *model_tetrahedra = NULL;
+struct body body[4];
 
 // system
 int64 shortest_delay_ns;
@@ -57,5 +56,8 @@ float *normal_data;
 float *color_data;
 float *vertex_data;
 uint16 gui_texture_res;
+
+unsigned int vbo, vao, ebo;
+unsigned int shader_program;
 
 #endif

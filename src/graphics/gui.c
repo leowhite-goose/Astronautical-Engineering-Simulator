@@ -198,8 +198,8 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, SDL_ALPHA_OPAQUE); // sets draw color to white, full alpha
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 10, "Cam Vel:%" SDL_PRIs32, cam_speed);
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 26, "Pan Vel:%" SDL_PRIs32, pan_sensitivity);
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 42, "%" SDL_PRIs32 "x% " SDL_PRIs32 "y% " SDL_PRIs32 "z", (int) root_cam.x, (int) root_cam.y, (int) root_cam.z);
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 58, "%" SDL_PRIs32 "x% " SDL_PRIs32 "y% " SDL_PRIs32 "z", (int) root_cam.a, (int) root_cam.b, (int) root_cam.c);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 42, "%.2lf"  "x %.2lf" "y %.2lf" "z", (double) root_cam.x / SCALE, (double) root_cam.y / SCALE, (double) root_cam.z / SCALE);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 58, "%.1lf"  "x %.1lf" "y %.1lf" "z", (double) root_cam.a, (double) root_cam.b, (double) root_cam.c);
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 74, "%" SDL_PRIs32, (int) global_fp);
 
     p2c.x = root_cam.x+1;

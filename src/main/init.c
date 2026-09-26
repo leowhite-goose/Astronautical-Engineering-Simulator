@@ -17,41 +17,13 @@ SDL_AppResult AES_init() {
         return SDL_APP_FAILURE;
     }
 
-    // create root openGL context;
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1); // https://wiki.libsdl.org/SDL3/SDL_GLAttr
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    root_gl_context = SDL_GL_CreateContext(root_window);
-    #ifdef __EMSCRIPTEN__
-    initialize_gl4es();
-    bool fill = true;
-    SDL_SetWindowFillDocument(root_window, fill);
-    #endif
-    if (!root_gl_context) {
-        SDL_Log("Couldn't create openGL context: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-    SDL_GL_SetSwapInterval(1); // note
-
     // setting keyboard
     keyboard_scancode_down_state = SDL_GetKeyboardState(&key_count);
 
-    // init system info
-    int opengl_major_version, opengl_minor_version, opengl_profile, depth_size;
-    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &opengl_major_version);
-    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &opengl_minor_version);
-    SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &opengl_profile);
-    SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depth_size);
-    SDL_Log("OpenGL version : %" SDL_PRIu32 ".%" SDL_PRIu32, opengl_major_version, opengl_minor_version); // of 3D openGL context
-    SDL_Log("Depth size (bits): %" SDL_PRIu32, depth_size);
-    if (opengl_profile == SDL_GL_CONTEXT_PROFILE_CORE) {
-        SDL_Log("OpenGL Core Profile");
-    }
-    if (opengl_profile == SDL_GL_CONTEXT_PROFILE_COMPATIBILITY) {
-        SDL_Log("OpenGL Compatibility Profile");
-    }
-    if (opengl_profile == SDL_GL_CONTEXT_PROFILE_ES) {
-        SDL_Log("OpenGL ES Profile");
+    AES_init_opengl();
+    if (!root_gl_context) {
+        SDL_Log("Couldn't create openGL context: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
 
     // setting up physics thread/loop
@@ -78,18 +50,42 @@ SDL_AppResult AES_init() {
     SDL_SetWindowIcon(root_window, window_icon_surface);
     SDL_DestroySurface(window_icon_surface);
 
+    AES_generate_shaders();
+
     #ifndef __EMSCRIPTEN__
-    char model_file[] = "meshes/TOS-Enterprise-G14.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml"//"meshes/20mm-Cube-4.xml"//"meshes/TOS-rip-FEMMeshGmsh002.xml"//"meshes/TOS-EnterpriseG-14.xml"
+    char model_file_ENT_H[] = "meshes/TOS-Enterprise-G14.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml"//"meshes/20mm-Cube-4.xml"//"meshes/TOS-rip-FEMMeshGmsh002.xml"//"meshes/TOS-
     #endif
     #ifdef __EMSCRIPTEN__
-    char model_file[] = "meshes/TOS-rip-FEMMeshGmsh002.xml"; // fallback model, as model above has too many polygons to be rendered with EMSCRIPTEN/GL4ES(for some reason)
+    char model_file_ENT_H[] = "meshes/TOS-rip-FEMMeshGmsh002.xml"; // fallback model, as model above has too many polygons to be rendered with EMSCRIPTEN/GL4ES(for some reason)
     #endif
-    int vertex_count;
-    int tetrahedron_count;
-    load_fenics_mesh(model_file, &vertex_count, &tetrahedron_count, &model_vertices, &model_tetrahedra);
-    model_cell_count = tetrahedron_count;
+    char model_file_ENT_L[] = "meshes/TOS-rip-FEMMeshGmsh002.xml";
+    char model_file_SPH_1[] = "meshes/Sphere_Diameter=1.xml";
+    char sphere_diameter1[] = "meshes/Sphere_Diameter=1.xml"; // use for stars, planets, etc.
 
-    normal_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // max of 8192 tetrahedral elements per model*
+    vec3i128 translate;
+
+    load_fenics_mesh(model_file_ENT_H, &body[0].geo.vert_cnt, &body[0].geo.tetra_cnt, &body[0].geo.tri_cnt, &body[0].geo.vertf, &body[0].geo.vertd, &body[0].geo.vert128, &body[0].geo.tetra, &body[0].geo.tri, &body[0].geo.vert_index_cnt);
+        translate.x = 0; translate.y = 0; translate.z = 0;
+        vertd_to_vert128_scaled(&body[0].geo.vert_cnt, &body[0].geo.vertd, &body[0].geo.vert128, SCALE);
+        vert128_translate(&body[0].geo.vert_cnt, &body[0].geo.vert128, translate);
+    load_fenics_mesh(model_file_ENT_L, &body[1].geo.vert_cnt, &body[1].geo.tetra_cnt, &body[1].geo.tri_cnt, &body[1].geo.vertf, &body[1].geo.vertd, &body[1].geo.vert128, &body[1].geo.tetra, &body[1].geo.tri, &body[1].geo.vert_index_cnt);
+        translate.x = 200*SCALE; translate.y = 0; translate.z = 0;
+        vertd_to_vert128_scaled(&body[1].geo.vert_cnt, &body[1].geo.vertd, &body[1].geo.vert128, SCALE);
+        vert128_translate(&body[1].geo.vert_cnt, &body[1].geo.vert128, translate);
+    load_fenics_mesh(model_file_SPH_1, &body[2].geo.vert_cnt, &body[2].geo.tetra_cnt, &body[2].geo.tri_cnt, &body[2].geo.vertf, &body[2].geo.vertd, &body[2].geo.vert128, &body[2].geo.tetra, &body[2].geo.tri, &body[2].geo.vert_index_cnt);
+        int numexp = 3;
+        translate.x = 100*SCALE; translate.y = -0.5*2*SDL_powf(2,numexp)*SCALE; translate.z = 0;
+        //vertd_to_vert128_scaled(&body[2].geo.vert_cnt, &body[2].geo.vertd, &body[2].geo.vert128, SCALE*SDL_powf(2,numexp));
+        vertd_to_vert128_scaled(&body[2].geo.vert_cnt, &body[2].geo.vertd, &body[2].geo.vert128, SCALE/10);
+        vert128_translate(&body[2].geo.vert_cnt, &body[2].geo.vert128, translate);
+
+        //remove_shared_faces(body[0].geo.tri_cnt, &body[0].geo.tri);
+
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);
+
+    normal_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // max of 8192 tetrahedral elements per model*; switch to using sane VBO
     color_data = SDL_malloc(sizeof(float) * 48 * 8192 * 2); // ~1.3 MiB
     vertex_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // 1.0 MiB
 

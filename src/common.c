@@ -13,12 +13,14 @@ typedef signed _BitInt(24) int24;
 typedef signed _BitInt(32) int32;
 typedef signed _BitInt(48) int48;
 typedef signed _BitInt(64) int64;
+typedef signed _BitInt(96) int96;
 typedef signed _BitInt(128) int128; // __int128
 
 typedef unsigned _BitInt(8) uint8;
 typedef unsigned _BitInt(16) uint16;
 typedef unsigned _BitInt(32) uint32;
 typedef unsigned _BitInt(64) uint64;
+typedef unsigned _BitInt(96) uint96;
 typedef unsigned _BitInt(128) uint128;
 
 typedef struct vec2f {
@@ -40,10 +42,17 @@ typedef struct vec4f {
 } vec4f;
 
 typedef struct vec32i3f {       // exists because of indexing vertices
-    int32 i;
+    int32 w;
     float x;
     float y;
     float z;
+} vec32i3d;
+
+typedef struct vec32i3d {
+    int32 w;
+    double x;
+    double y;
+    double z;
 } vec32i3f;
 
 typedef struct vec6f {          // exists because there're 6 DoF in 3D space
@@ -73,7 +82,7 @@ typedef struct vec3i32 {        // (3x)     -2.147483648e9 <--> 2.147483648e9 -1
     int32 z;
 } vec3i32;
 
-typedef struct vec4i32 {        // ???
+typedef struct vec4i32 {        // index triangles using vert references
     int32 w;
     int32 x;
     int32 y;
@@ -100,6 +109,13 @@ typedef struct vec3i128 {       // (3x) -3.40282366921e+38 <--> 3.40282366921e+3
     int128 z;
 } vec3i128;
 
+typedef struct vec32i3i128 {       // (3x) -3.40282366921e+38 <--> 3.40282366921e+38 -1
+    int32 w;
+    int128 x;
+    int128 y;
+    int128 z;
+} vec32i3i128;
+
 typedef struct vec4i128 {
     int128 w;
     int128 x;
@@ -116,53 +132,106 @@ typedef struct vec6i128 {
     int128 z;
 } vec6i128;
 
-typedef struct meshf {
-    // void* parent;
-    int element_count;
-    int element_size;           // "4" -> quads, "3" -> triangles, "2" -> lines, "1" -> points
-    //vec3f offset;
-    vec6f bounding_box;
-    //void* polygons // array of pointers
-    vec3f *vertices;
-    vec3f *normals;
-    vec4f *colors;
-    //mesh* connected_meshes;   // paired with below
-    //vec3f *shared_vertices;   // paired with above
-} meshf;
+typedef struct vec3f3i128 {
+    float a;
+    float b;
+    float c;
+    int128 x;
+    int128 y;
+    int128 z;
+} vec3f3i128;
 
-typedef struct mesh128i {
-    void *parent;
-    void *children;             // dynamic array of pointers
-    int32 children_count;
+typedef struct pos3i128 {
+    vec3i128 p;
+    vec3i128 v;
+    vec3i128 a;
+} pos3i128;
 
-    int32 element_count;        // number of quads + triangles + lines + points; e.g., 3,3,3,2,2,3,3,3,1,2,2
-    int4 *element_size;         // dynamic array length = element_count; "4" -> quads, "3" -> triangles, "2" -> lines, "1" -> points
-    void *elements;
-    int4 *element_type;
+struct point_particle { // all derived*
+    float M;            // mass
+    pos3i128 t;         // translative pos, vel, acc
+    float I;            // rotational inertia
+    pos3i128 r;         // rotational pos, vel, acc
+    float Q;            // charge
+    vec3i128 AABB[4];   // bounding box
+    char mat[];         // material (*not derived)
+};
 
-    vec3i128 *vertices_pos;
-    vec3i128 *vertices_vec;
-    vec3i128 *vertices_acc;
-    vec3f *normals;
-    vec4f *colors;              // w = alpha, xyz = rgb
-    int32 *materials;           // might merge with above
-    float *temperatures;
+struct geometry {
+    int32 vert_cnt;
+    uint32 vert_index_cnt;
+    int32 tetra_cnt;
+    int32 tri_cnt;
+    vec32i3f *vertf;
+    vec32i3d *vertd;
+    vec32i3i128 *vert128;
+    vec5i32 *tetra;
+    vec4i32 *tri;       // surface (if filtered)
+};
 
-    vec4i128 bounding_sphere;   // w = radius, xyz = position
-    vec6i128 bounding_box;      // vec3 aabbmin + vec3 aabbmax
+struct body {
+    struct geometry geo;
+    struct point_particle CM;
+};
 
-    void *connected_meshes;     // dynamic array of pointers; paired with below
-    vec3i128 *shared_vertices;  // paired with above
-    int8 *connection_types;     // e.g., weld, solid/homogeneous, etc.
-} mesh128i;
+#ifndef __EMSCRIPTEN__
+typedef void (APIENTRY * glGenBuffers_func)(GLsizei n, GLuint * buffers); // https://wiki.libsdl.org/SDL3/SDL_GL_GetProcAddress
+glGenBuffers_func glGenBuffers = 0;
 
-typedef struct fenics_mesh {
-    int node_count;
-    vec3f *vertices;
-    vec3f *normals;
-    vec4f *colors;
-    vec3i32 *tetrahedra;
-} fenics_mesh;
+typedef void (APIENTRY * glBindBuffer_func)(GLenum target, GLuint buffer);
+glBindBuffer_func glBindBuffer = 0;
+
+typedef void (APIENTRY * glBufferData_func)(GLenum target, GLsizeiptr size, const void * data, GLenum usage);
+glBufferData_func glBufferData = 0;
+
+typedef GLuint (APIENTRY * glCreateShader_func)(GLenum shaderType);
+glCreateShader_func glCreateShader = 0;
+
+typedef void (APIENTRY * glShaderSource_func)(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
+glShaderSource_func glShaderSource = 0;
+
+typedef void (APIENTRY * glCompileShader_func)(GLuint shader);
+glCompileShader_func glCompileShader = 0;
+
+typedef GLuint (APIENTRY * glCreateProgram_func)(void);
+glCreateProgram_func glCreateProgram = 0;
+
+typedef void (APIENTRY * glAttachShader_func)(GLuint program, GLuint shader);
+glAttachShader_func glAttachShader = 0;
+
+typedef void (APIENTRY * glLinkProgram_func)(GLuint program);
+glLinkProgram_func glLinkProgram = 0;
+
+typedef void (APIENTRY * glDeleteShader_func)(GLuint shader);
+glDeleteShader_func glDeleteShader = 0;
+
+typedef void (APIENTRY * glGenVertexArrays_func)(GLsizei n, GLuint *arrays);
+glGenVertexArrays_func glGenVertexArrays = 0;
+
+typedef void (APIENTRY * glBindVertexArray_func)(GLuint array);
+glBindVertexArray_func glBindVertexArray = 0;
+
+typedef void (APIENTRY * glVertexAttribPointer_func)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
+glVertexAttribPointer_func glVertexAttribPointer = 0;
+
+typedef void (APIENTRY * glEnableVertexAttribArray_func)(GLuint index);
+glEnableVertexAttribArray_func glEnableVertexAttribArray = 0;
+
+typedef void (APIENTRY * glUseProgram_func)(GLuint program);
+glUseProgram_func glUseProgram = 0;
+
+typedef void (APIENTRY * glGetProgramiv_func)(GLuint program, GLenum pname, GLint *params);
+glGetProgramiv_func glGetProgramiv = 0;
+
+typedef void (APIENTRY * glGetProgramInfoLog_func)(GLuint program, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+glGetProgramInfoLog_func glGetProgramInfoLog = 0;
+
+typedef void (APIENTRY * glGetShaderiv_func)(GLuint shader, GLenum pname, GLint *params);
+glGetShaderiv_func glGetShaderiv = 0;
+
+typedef void (APIENTRY * glGetShaderInfoLog_func)(GLuint shader, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+glGetShaderInfoLog_func glGetShaderInfoLog = 0;
+#endif
 
 // structs
 SDL_FRect rect4f;
