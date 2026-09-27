@@ -54,6 +54,10 @@ void AES_init_opengl() {
     glGetProgramInfoLog = (glGetProgramInfoLog_func) SDL_GL_GetProcAddress("glGetProgramInfoLog");
     glGetShaderiv = (glGetShaderiv_func) SDL_GL_GetProcAddress("glGetShaderiv");
     glGetShaderInfoLog = (glGetShaderInfoLog_func) SDL_GL_GetProcAddress("glGetShaderInfoLog");
+    glUniformMatrix4fv = (glUniformMatrix4fv_func) SDL_GL_GetProcAddress("glUniformMatrix4fv");
+    glGetUniformLocation = (glGetUniformLocation_func) SDL_GL_GetProcAddress("glGetUniformLocation");
+    glGetnUniformfv = (glGetnUniformfv_func) SDL_GL_GetProcAddress("glGetnUniformfv");
+    glProgramUniformMatrix4fv = (glProgramUniformMatrix4fv_func) SDL_GL_GetProcAddress("glProgramUniformMatrix4fv_func");
     #endif
 }
 
@@ -136,7 +140,7 @@ void perspectivef(float fovY, float aspect, float z_near, float z_far, float* ma
     matrix[15] = 0;
 }
 
-/*void perspectivef(float fovY, float aspect, float z_near, float z_far, float* matrix) {
+void perspective(float fovY, float aspect, float z_near, float z_far, float* matrix) {
     float f = 1.0 / SDL_tanf(fovY * 0.5 * (SDL_PI_D / 180));
 
     matrix[0]  = f / aspect;
@@ -158,7 +162,7 @@ void perspectivef(float fovY, float aspect, float z_near, float z_far, float* ma
     matrix[13] = 0;
     matrix[14] = -1;
     matrix[15] = 0;
-}*/
+}
 
 void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt) {
     //SDL_Log("%" SDL_PRIu32, triangle_count);

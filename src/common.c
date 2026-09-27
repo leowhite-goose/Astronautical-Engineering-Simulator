@@ -1,6 +1,8 @@
 #ifndef COMMON_C
 #define COMMON_C
 
+#include "../lib/cglm-0.9.6/include/cglm/cglm.h"
+
 // defines
 #define physics_dt 0.001        // in seconds
 
@@ -231,6 +233,18 @@ glGetShaderiv_func glGetShaderiv = 0;
 
 typedef void (APIENTRY * glGetShaderInfoLog_func)(GLuint shader, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
 glGetShaderInfoLog_func glGetShaderInfoLog = 0;
+
+typedef void (APIENTRY * glUniformMatrix4fv_func)(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value); // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glUniform.xhtml
+glUniformMatrix4fv_func glUniformMatrix4fv = 0;
+
+typedef GLint (APIENTRY * glGetUniformLocation_func)(GLuint program, const GLchar *name);
+glGetUniformLocation_func glGetUniformLocation = 0;
+
+typedef void (APIENTRY * glGetnUniformfv_func)(GLuint program, GLint location, GLsizei bufSize, GLfloat *params);
+glGetnUniformfv_func glGetnUniformfv = 0;
+
+typedef void (APIENTRY * glProgramUniformMatrix4fv_func)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+glProgramUniformMatrix4fv_func glProgramUniformMatrix4fv = 0;
 #endif
 
 // structs

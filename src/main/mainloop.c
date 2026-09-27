@@ -105,10 +105,10 @@ SDL_AppResult AES_mainloop() {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     float vertices[] = {
-        0.5f,  0.5f, 0.0f,  // top right
-        0.5f, -0.5f, 0.0f,  // bottom right
-        -0.5f, -0.5f, 0.0f,  // bottom left
-        -0.5f,  0.5f, 0.0f   // top left
+        0.5f,  0.5f, -1.8f,  // top right
+        0.5f, -0.5f, -1.8f,  // bottom right
+        -0.5f, -0.5f, -1.9f,  // bottom left
+        -0.5f,  0.5f, -1.9f   // top left
     };
     unsigned int indices[] = {
         0, 1, 3,  // first triangle
@@ -122,6 +122,22 @@ SDL_AppResult AES_mainloop() {
     glBindVertexArray(0);
 
     glUseProgram(shader_program);
+
+    //float projection_matrix[16]; // 4x4 perspective matrix
+    const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    float view_matrix[4][4] = {{1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0,0,1}};
+    float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    perspective(60.0f, (float) root_window_width / root_window_height, (float) 0.1, (float) 100, projection_matrix);
+    unsigned int view_loc = glGetUniformLocation(shader_program, "view");
+    unsigned int proj_loc = glGetUniformLocation(shader_program, "projection");
+    glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
+    /*float *view_uniform = (float*) SDL_malloc(sizeof(float) * 16);
+    glGetnUniformfv(shader_program, view_loc, sizeof(float) * 16, view_uniform);
+    SDL_Log("Uniform - %.3f", *(view_uniform+0));*/
+    glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &projection_matrix[0]);
+    //SDL_Log("projloc %" SDL_PRIu32, proj_loc);
+    //SDL_Log("viewloc %" SDL_PRIu32, view_loc);
+
     glBindVertexArray(vao);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
