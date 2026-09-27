@@ -245,6 +245,12 @@ glGetnUniformfv_func glGetnUniformfv = 0;
 
 typedef void (APIENTRY * glProgramUniformMatrix4fv_func)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 glProgramUniformMatrix4fv_func glProgramUniformMatrix4fv = 0;
+
+typedef void (APIENTRY * glUniform4f_func)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+glUniform4f_func glUniform4f = 0;
+
+typedef void (APIENTRY * glBufferSubData_func)(GLenum target, GLintptr offset, GLsizeiptr size, const void * data);
+glBufferSubData_func glBufferSubData = 0;
 #endif
 
 // structs

@@ -56,6 +56,8 @@ float *normal_data;
 float *color_data;
 float *vertex_data;
 uint16 gui_texture_res;
+float *normal_data_c;
+float *vertex_data_c;
 
 unsigned int vbo, vao, ebo;
 unsigned int shader_program;

@@ -3,7 +3,7 @@
 
 SDL_AppResult AES_init() {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
-    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.19", "SDL3-Project");
+    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.20", "SDL3-Project");
 
     // init SDL
     SDL_Init(SDL_INIT_VIDEO); // https://wiki.libsdl.org/SDL3/SDL_Init
@@ -88,6 +88,9 @@ SDL_AppResult AES_init() {
     normal_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // max of 8192 tetrahedral elements per model*; switch to using sane VBO
     color_data = SDL_malloc(sizeof(float) * 48 * 8192 * 2); // ~1.3 MiB
     vertex_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // 1.0 MiB
+
+    normal_data_c = SDL_malloc(sizeof(float) * 36 * 8192 * 2);
+    vertex_data_c = SDL_malloc(sizeof(float) * 84 * 8192 * 2);
 
     return SDL_APP_CONTINUE;
 }

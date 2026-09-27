@@ -103,31 +103,49 @@ SDL_AppResult AES_mainloop() {
     // draw a rectangle
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    float vertices[] = {
-        0.5f,  0.5f, -1.8f,  // top right
-        0.5f, -0.5f, -1.8f,  // bottom right
-        -0.5f, -0.5f, -1.9f,  // bottom left
-        -0.5f,  0.5f, -1.9f   // top left
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    /*float vertices[] = {
+        0.5f,  0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // top right
+        0.5f, -0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f,// bottom right
+        -0.5f, -0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f,// bottom left
+        -0.5f,  0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f// top left
     };
     unsigned int indices[] = {
-        0, 1, 3,  // first triangle
-        1, 2, 3   // second triangle
+    0, 1, 3,  // first triangle
+    1, 2, 3   // second triangle
     };
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    */
+    float vertices[] = {
+        0.5f,  0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // top right
+        0.5f, -0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // bottom right
+        -0.5f,  0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f, // top left
+        0.5f, -0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f,// bottom right
+        -0.5f, -0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f,// bottom left
+        -0.5f,  0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f // top left
+    };
+    render_tetrahedra_c(&body[1].geo.vertf, &body[1].geo.tetra, &body[1].geo.vert128, body[1].geo.vert_cnt, body[1].geo.tetra_cnt, 1, root_cam); // rainbow-prise
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 7 * body[1].geo.tri_cnt, &vertex_data_c[0], GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 84 * body[1].geo.tetra_cnt, &vertex_data_c[0], GL_DYNAMIC_DRAW); // glBufferSubData
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3* sizeof(float)));
+    glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     glUseProgram(shader_program);
 
-    //float projection_matrix[16]; // 4x4 perspective matrix
     const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-    float view_matrix[4][4] = {{1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0,0,1}};
-    float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-    perspective(60.0f, (float) root_window_width / root_window_height, (float) 0.1, (float) 100, projection_matrix);
+    float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1}; // 4x4 perspective matrix
+    perspective(60.0f, (float) root_window_width / root_window_height, (float) SDL_pow(2,31), (float) SDL_pow(2,40), projection_matrix);
+    mat4 view_matrix;
+    glm_mat4_identity(view_matrix);
+    glm_rotate(view_matrix, ((root_cam.b-90)*SDL_PI_F/180), (vec3) {1,0,0});
+    glm_rotate(view_matrix, ((-root_cam.a)*SDL_PI_F/180), (vec3) {0,1,0});
+    glm_rotate(view_matrix, ((root_cam.c)*SDL_PI_F/180), (vec3) {0,0,1});
+    glm_rotate(view_matrix, ((90)*SDL_PI_F/180), (vec3) {0,1,0});
+    glm_rotate(view_matrix, ((-90)*SDL_PI_F/180), (vec3) {1,0,0});
     unsigned int view_loc = glGetUniformLocation(shader_program, "view");
     unsigned int proj_loc = glGetUniformLocation(shader_program, "projection");
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
@@ -139,7 +157,14 @@ SDL_AppResult AES_mainloop() {
     //SDL_Log("viewloc %" SDL_PRIu32, view_loc);
 
     glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+    glDrawArrays(GL_TRIANGLES, 0, body[1].geo.tetra_cnt*12);
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
     glBindVertexArray(0);
     glUseProgram(0);
 

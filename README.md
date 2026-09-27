@@ -23,9 +23,9 @@ If you just want to run the program, using a machine running some typical deskto
 ## Compiling and Running the Program (by platform)
 ### Compiling for GNU Linux:
 1. run either one of the following from a terminal to build/compile the code:
-    - gcc src/main/main.c -o AES -lSDL3 -lGL
+    - gcc src/main/main.c -o AES -lSDL3 -lGL -lm
         - requires fedora's "SDL3-devel.x86_64" or your distro's equivalent package
-    - gcc src/main/main.c -o AES -I lib/ -lGL
+    - gcc src/main/main.c -o AES -I lib/ -lGL -lm
         - using included SDL3 library (lib/SDL3 is empty, so provide your own pre-compiled one for your system there)
         
 2. to run the program (or just double click the file generated from above)

@@ -57,7 +57,9 @@ void AES_init_opengl() {
     glUniformMatrix4fv = (glUniformMatrix4fv_func) SDL_GL_GetProcAddress("glUniformMatrix4fv");
     glGetUniformLocation = (glGetUniformLocation_func) SDL_GL_GetProcAddress("glGetUniformLocation");
     glGetnUniformfv = (glGetnUniformfv_func) SDL_GL_GetProcAddress("glGetnUniformfv");
-    glProgramUniformMatrix4fv = (glProgramUniformMatrix4fv_func) SDL_GL_GetProcAddress("glProgramUniformMatrix4fv_func");
+    glProgramUniformMatrix4fv = (glProgramUniformMatrix4fv_func) SDL_GL_GetProcAddress("glProgramUniformMatrix4fv");
+    glUniform4f = (glUniform4f_func) SDL_GL_GetProcAddress("glUniform4f");
+    glBufferSubData = (glBufferSubData_func) SDL_GL_GetProcAddress("glBufferSubData");
     #endif
 }
 
@@ -164,10 +166,19 @@ void perspective(float fovY, float aspect, float z_near, float z_far, float* mat
     matrix[15] = 0;
 }
 
-void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt) {
+void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam) {
     //SDL_Log("%" SDL_PRIu32, triangle_count);
     //SDL_Log("HYIj - %.3f", (float) (*vert128)[6].x);
+    vec3i128 translate;
+    translate.x = -cam.x;
+    translate.y = -cam.y;
+    translate.z = -cam.z;
+    vert128_translate(&vertex_count, vert128, translate);
     vert128_to_verf(&vertex_count, vert128, vertf);
+    translate.x = cam.x;
+    translate.y = cam.y;
+    translate.z = cam.z;
+    vert128_translate(&vertex_count, vert128, translate);
     //SDL_Log("HYIf - %.3f", (float) (*vertf)[6].x);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -247,8 +258,17 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
     glDisable(GL_CULL_FACE);
 }
 
-void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128, uint32 vertex_count, int32 cell_count, bool debug) {
+void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128, uint32 vertex_count, int32 cell_count, bool debug, vec3f3i128 cam) {
+    vec3i128 translate;
+    translate.x = -cam.x;
+    translate.y = -cam.y;
+    translate.z = -cam.z;
+    vert128_translate(&vertex_count, vert128, translate);
     vert128_to_verf(&vertex_count, vert128, nodes);
+    translate.x = cam.x;
+    translate.y = cam.y;
+    translate.z = cam.z;
+    vert128_translate(&vertex_count, vert128, translate);
     if (!debug) {glEnable(GL_CULL_FACE); glCullFace(GL_BACK);}
     for (int i = 0; i < cell_count; i++) {
         vec3f normal0 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].y]);
@@ -351,8 +371,75 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     if (!debug) {glDisable(GL_CULL_FACE);}
 }
 
+void render_tetrahedra_c(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128, uint32 vertex_count, int32 cell_count, bool debug, vec3f3i128 cam) {
+    vec3i128 translate;
+    translate.x = -cam.x;
+    translate.y = -cam.y;
+    translate.z = -cam.z;
+    vert128_translate(&vertex_count, vert128, translate);
+    vert128_to_verf(&vertex_count, vert128, nodes);
+    translate.x = cam.x;
+    translate.y = cam.y;
+    translate.z = cam.z;
+    vert128_translate(&vertex_count, vert128, translate);
+    if (!debug) {glEnable(GL_CULL_FACE); glCullFace(GL_BACK);}
+    for (int i = 0; i < cell_count; i++) {
+        vec3f normal0 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].y]);
+        vec3f normal1 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].x]); // flipped
+        vec3f normal2 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].z]);
+        vec3f normal3 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].b]); // flipped
+        float temp_normal_data[36] = {
+            normal0.x, normal0.y, normal0.z, // v0 v1 v2
+            normal0.x, normal0.y, normal0.z,
+            normal0.x, normal0.y, normal0.z,
+
+            normal1.x, normal1.y, normal1.z, // v3 v2 v1
+            normal1.x, normal1.y, normal1.z,
+            normal1.x, normal1.y, normal1.z,
+
+            normal2.x, normal2.y, normal2.z, // v0 v2 v3
+            normal2.x, normal2.y, normal2.z,
+            normal2.x, normal2.y, normal2.z,
+
+            normal3.x, normal3.y, normal3.z, // v3
+            normal3.x, normal3.y, normal3.z, // v1
+            normal3.x, normal3.y, normal3.z  // v0
+        };
+        float transparency_;
+        if (debug) {
+            transparency_ = 0.5;
+        } else {
+            transparency_ = 1.0;
+        }
+        float temp_vertex_data[] = {
+            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,0.0,transparency_, // v0
+            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 1.0,0.0,0.0,transparency_, // v1
+            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 1.0,0.0,0.0,transparency_, // v2
+
+            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 0.0,1.0,0.0,transparency_, // v3
+            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 0.0,1.0,0.0,transparency_, // v2
+            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 0.0,1.0,0.0,transparency_, // v1
+
+            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 0.0,0.0,1.0,transparency_, // v0
+            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 0.0,0.0,1.0,transparency_, // v2
+            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 0.0,0.0,1.0,transparency_, // v3
+
+            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 1.0,0.0,1.0,transparency_, // v3
+            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 1.0,0.0,1.0,transparency_, // v1
+            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,1.0,transparency_  // v0
+        };
+        for (int j = 0; j < 36; j++) {
+            normal_data_c[j + 36 * i] = temp_normal_data[j];
+        }
+        for (int j = 0; j < 84; j++) {
+            vertex_data_c[j + 84 * i] = temp_vertex_data[j];
+        }
+    }
+    if (!debug) {glDisable(GL_CULL_FACE);}
+}
+
 void draw_world_geometry(vec3f3i128 cam) {
-    glTranslatef(cam.y, -cam.z, cam.x);
+    //glTranslatef(cam.y, -cam.z, cam.x);
     glRotatef(90, 0.0, 1.0, 0.0);
     glRotatef(-90, 1.0, 0.0, 0.0);
 
@@ -399,14 +486,14 @@ void draw_world_geometry(vec3f3i128 cam) {
 
     glEnable(GL_LIGHTING);
 
-    render_triangles(body[0].geo.vert_cnt, body[0].geo.tetra_cnt * 4, &body[0].geo.vertf, &body[0].geo.vert128, &body[0].geo.tri, body[0].geo.vert_index_cnt); // enterprise
+    render_triangles(body[0].geo.vert_cnt, body[0].geo.tetra_cnt * 4, &body[0].geo.vertf, &body[0].geo.vert128, &body[0].geo.tri, body[0].geo.vert_index_cnt, cam); // enterprise
 
     mat_emmision[0] = 0.5;
     mat_emmision[1] = 0.5;
     mat_emmision[2] = 0.5;
     mat_emmision[3] = 1;
     glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emmision);
-    render_triangles(body[2].geo.vert_cnt, body[2].geo.tetra_cnt * 4, &body[2].geo.vertf, &body[2].geo.vert128, &body[2].geo.tri, body[2].geo.vert_index_cnt); // planet
+    render_triangles(body[2].geo.vert_cnt, body[2].geo.tetra_cnt * 4, &body[2].geo.vertf, &body[2].geo.vert128, &body[2].geo.tri, body[2].geo.vert_index_cnt, cam); // planet
     mat_emmision[0] = 0;
     mat_emmision[1] = 0;
     mat_emmision[2] = 0;
@@ -415,11 +502,11 @@ void draw_world_geometry(vec3f3i128 cam) {
 
     glDisable(GL_LIGHTING);
 
-    render_tetrahedra(&body[1].geo.vertf, &body[1].geo.tetra, &body[1].geo.vert128, body[1].geo.vert_cnt, body[1].geo.tetra_cnt, 1); // rainbow-prise
+    //render_tetrahedra(&body[1].geo.vertf, &body[1].geo.tetra, &body[1].geo.vert128, body[1].geo.vert_cnt, body[1].geo.tetra_cnt, 1); // rainbow-prise
 
     glRotatef(90, 1.0, 0.0, 0.0);
     glRotatef(-90, 0.0, 1.0, 0.0);
-    glTranslatef(-cam.y, cam.z, -cam.x);
+    //glTranslatef(-cam.y, cam.z, -cam.x);
 }
 
 void render3D(float window_width, float window_height, vec3f3i128 cam) {
