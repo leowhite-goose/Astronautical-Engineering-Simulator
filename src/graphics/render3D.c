@@ -83,7 +83,7 @@ void AES_generate_shaders() {
 
     unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     const char *vertex_shader_source = vertex_shader_src;
-    SDL_Log("%s", vertex_shader_src);
+    //SDL_Log("%s", vertex_shader_src);
     glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
     glCompileShader(vertex_shader);
     glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
@@ -119,30 +119,6 @@ void AES_generate_shaders() {
     }
 }
 
-void perspectivef(float fovY, float aspect, float z_near, float z_far, float* matrix) { // https://nlguillemot.wordpress.com/2016/12/07/reversed-z-in-opengl/
-    float f = 1.0 / SDL_tanf(fovY * 0.5 * (SDL_PI_D / 180));
-
-    matrix[0]  = f / aspect;
-    matrix[1]  = 0;
-    matrix[2]  = 0;
-    matrix[3]  = 0;
-
-    matrix[4]  = 0;
-    matrix[5]  = f;
-    matrix[6]  = 0;
-    matrix[7]  = 0;
-
-    matrix[8]  = 0;
-    matrix[9]  = 0;
-    matrix[10] = (z_far + z_near) / (z_near - z_far);
-    matrix[11] = -1;
-
-    matrix[12] = 0;
-    matrix[13] = 0;
-    matrix[14] = (2 * z_far * z_near) / (z_near - z_far); // I think this uses reversed Z (I at least tried it out); I've honestly forgetten what I did here
-    matrix[15] = 0;
-}
-
 void perspective(float fovY, float aspect, float z_near, float z_far, float* matrix) {
     float f = 1.0 / SDL_tanf(fovY * 0.5 * (SDL_PI_D / 180));
 
@@ -175,14 +151,16 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
     translate.y = -cam.y;
     translate.z = -cam.z;
     vert128_translate(&vertex_count, vert128, translate);
-    vert128_to_verf(&vertex_count, vert128, vertf);
+    vert128_to_verf_graphics(&vertex_count, vert128, vertf);
     translate.x = cam.x;
     translate.y = cam.y;
     translate.z = cam.z;
     vert128_translate(&vertex_count, vert128, translate);
     //SDL_Log("HYIf - %.3f", (float) (*vertf)[6].x);
     for (int i = 0; i < triangle_count; i++) {
-        vec3f normal = generate_normal((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
+        //vec3f normal = generate_normal((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
+        vec3d normald = generate_normald((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
+        vec3f normal = {(float)normald.x,(float) normald.y,(float) normald.z};
         float transparency_ = 1.0;
         float temp_vertex_data[30] = {
             (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, 0.8,0.8,0.8,transparency_, normal.x, normal.y, normal.z, // v0
@@ -239,36 +217,9 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
             vertex_data_c[j + 120 * i] = temp_vertex_data[j];
         }
     }
-    if (!debug) {glDisable(GL_CULL_FACE);}
 }
 
-void draw_world_geometry(vec3f3i128 cam) {
-    //glTranslatef(cam.y, -cam.z, cam.x);
-    glRotatef(90, 0.0, 1.0, 0.0);
-    glRotatef(-90, 1.0, 0.0, 0.0);
-
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_COLOR_MATERIAL);
-    //glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, 1);
-    glEnable(GL_LIGHT0);
-    float light0_pos[4] = {cam.x, cam.y, cam.z, 1};
-    float atten_terms[3] = {0,0,1}; //{0.0000001/SDL_powf(SCALE,2),0,0}; // falloff = (inversely proportional to) luminance
-    float specular[4] = {1,1,1,1};
-    float global_ambient[4] = {0, 0, 0, 1};
-    //float mat_specular[4] = {0.1,0.1,0.1,1};
-    float mat_emmision[4] = {0,0,0,1};
-    glLightfv(GL_LIGHT0, GL_POSITION, light0_pos);
-    glLightfv(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, atten_terms);
-    glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
-    glLightModelf(GL_LIGHT_MODEL_AMBIENT, *global_ambient);
-    //glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emmision);
-    glPolygonMode(GL_FRONT, GL_FILL); // GL_POINT, GL_LINE, GL_FILL
-    glPolygonMode(GL_BACK, GL_FILL);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+/*void draw_world_geometry(vec3f3i128 cam) {
     if (touch_button[0]) {
         glBegin(GL_TRIANGLES); // colliding blue triangles test
         glColor4f(0.2, 0.2, 0.5, 0.4);
@@ -280,95 +231,83 @@ void draw_world_geometry(vec3f3i128 cam) {
         glVertex3f(p2c.x, p2c.y, p2c.z);
         glEnd();
     }
+}*/
 
-    vec3i128 translate;
-    translate.x = cam.x;
-    translate.y = cam.y;
-    translate.z = cam.z;
-    //vert128_translate(&body[0].geo.vert_cnt, &body[0].geo.vert128, translate);
-    //SDL_Log("JJIK ] %.3f", body[0].geo.vert128[5].x);
+void render_body(int32 id) {
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    /*float vertices[] = {
+        0 .5f,  0.5f,* -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // top right
+        0.5f, -0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f,// bottom right
+        -0.5f, -0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f,// bottom left
+        -0.5f,  0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f// top left
+    };
+    unsigned int indices[] = {
+        0, 1, 3,  // first triangle
+        1, 2, 3   // second triangle
+    };*/
+    render_triangles(body[id].geo.vert_cnt, body[id].geo.tetra_cnt * 4, &body[id].geo.vertf, &body[id].geo.vert128, &body[id].geo.tri, body[id].geo.vert_index_cnt, root_cam); // enterprise
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 30 * body[id].geo.tri_cnt, &vertex_data[0], GL_DYNAMIC_DRAW); // glBufferSubData
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 
-    glEnable(GL_LIGHTING);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(3* sizeof(float)));
+    glEnableVertexAttribArray(1);
 
-    //render_triangles(body[0].geo.vert_cnt, body[0].geo.tetra_cnt * 4, &body[0].geo.vertf, &body[0].geo.vert128, &body[0].geo.tri, body[0].geo.vert_index_cnt, cam); // enterprise
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(7* sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
-    mat_emmision[0] = 0.5;
-    mat_emmision[1] = 0.5;
-    mat_emmision[2] = 0.5;
-    mat_emmision[3] = 1;
-    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emmision);
-    //render_triangles(body[2].geo.vert_cnt, body[2].geo.tetra_cnt * 4, &body[2].geo.vertf, &body[2].geo.vert128, &body[2].geo.tri, body[2].geo.vert_index_cnt, cam); // planet
-    mat_emmision[0] = 0;
-    mat_emmision[1] = 0;
-    mat_emmision[2] = 0;
-    mat_emmision[3] = 1;
-    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emmision);
+    glUseProgram(shader_program);
 
-    glDisable(GL_LIGHTING);
+    const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1}; // 4x4 perspective matrix
+    perspective(60.0f, (float) root_window_width / root_window_height, (float) SDL_pow(2,0), (float) SDL_pow(2,128), projection_matrix);
+    mat4 view_matrix;
+    glm_mat4_identity(view_matrix);
+    glm_rotate(view_matrix, ((root_cam.b-90)*SDL_PI_F/180), (vec3) {1,0,0});
+    glm_rotate(view_matrix, ((-root_cam.a)*SDL_PI_F/180), (vec3) {0,1,0});
+    glm_rotate(view_matrix, ((root_cam.c)*SDL_PI_F/180), (vec3) {0,0,1});
+    glm_rotate(view_matrix, ((90)*SDL_PI_F/180), (vec3) {0,1,0});
+    glm_rotate(view_matrix, ((-90)*SDL_PI_F/180), (vec3) {1,0,0});
+    unsigned int view_loc = glGetUniformLocation(shader_program, "view");
+    unsigned int proj_loc = glGetUniformLocation(shader_program, "projection");
+    unsigned int light_pos_loc = glGetUniformLocation(shader_program, "light_pos");
+    glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
+    glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &projection_matrix[0]);
+    glUniform3f(light_pos_loc, 0, 0, 0);
 
-    //render_tetrahedra(&body[1].geo.vertf, &body[1].geo.tetra, &body[1].geo.vert128, body[1].geo.vert_cnt, body[1].geo.tetra_cnt, 1); // rainbow-prise
+    glBindVertexArray(vao);
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glDrawArrays(GL_TRIANGLES, 0, body[id].geo.tetra_cnt*12);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glBindVertexArray(0);
+    glUseProgram(0);
 
-    glRotatef(90, 1.0, 0.0, 0.0);
-    glRotatef(-90, 0.0, 1.0, 0.0);
-    //glTranslatef(-cam.y, cam.z, -cam.x);
+    //glDisableVertexAttribArray(0); // (?)
+    //glDisableVertexAttribArray(1);
+    //glDisableVertexAttribArray(2);
 }
 
 void render3D(float window_width, float window_height, vec3f3i128 cam) {
-    glViewport(0, 0, window_width, window_height);
+    glViewport(0, 0, root_window_width, root_window_height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //3D render
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-
-    float projection_matrix_0[16]; // 4x4 perspective matrix
-    float projection_matrix_1[16];
-
-    //far
-    perspectivef(60.0f, (float) window_width / window_height, (float) SDL_pow(2,10), (float) SDL_pow(2,20), projection_matrix_0);
-    glLoadMatrixf(projection_matrix_0);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    glRotatef(cam.b - 90, 1.0f, 0.0f, 0.0f);
-    glRotatef(-cam.a    , 0.0f, 1.0f, 0.0f);
-    glRotatef(cam.c     , 0.0f, 0.0f, 1.0f);
-
-    glEnable(GL_DEPTH_TEST);
-    draw_world_geometry(cam);
-    //glDisable(GL_DEPTH_TEST);
-
-    /*glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glClear(GL_DEPTH_BUFFER_BIT);
-
-    //close
-    perspectivef(60.0f, (float) window_width / window_height, (float) SDL_pow(2,8), (float) SDL_pow(2,15), projection_matrix_1);
-    glLoadMatrixf(projection_matrix_1);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    glRotatef(cam.b - 90, 1.0f, 0.0f, 0.0f);
-    glRotatef(-cam.a    , 0.0f, 1.0f, 0.0f);
-    glRotatef(cam.c     , 0.0f, 0.0f, 1.0f);
-
-    //glEnable(GL_DEPTH_TEST);
-    draw_world_geometry(cam);*/
-    glDisable(GL_DEPTH_TEST);
-
-    //2D render
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0); // https://stackoverflow.com/questions/2571402/how-to-use-glortho-in-opengl
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glEnable(GL_TEXTURE_2D);
-    gl_render_root_gui(window_width, window_height); // note
-    glDisable(GL_TEXTURE_2D);
+    render_body(0);
+    render_body(1);
+    render_body(2);
 }
 
 #endif

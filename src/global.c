@@ -20,7 +20,7 @@ SDL_Keymod keymod_state;
 struct mouse mouse;
 struct touch touch[10];
 
-#define SCALE 1e2 // 1e-1 1e2 1e9 1e35
+#define SCALE 1e15 // 1e-1 1e2 1e9 1e35; 1e15 --> 1 = fm, 1e15 = meter
 vec3f3i128 root_cam = {45,75,0,-67*SCALE,-60*SCALE,-27*SCALE};
 //vec3f3i128 cam_pos = {};
 

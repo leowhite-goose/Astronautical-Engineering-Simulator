@@ -271,9 +271,9 @@ void vert128_to_verf(int32 *vertex_count, vec32i3i128 **vert128, vec32i3f **vert
 void vert128_to_verf_graphics(int32 *vertex_count, vec32i3i128 **vert128, vec32i3f **vertf) {
     //SDL_Log("%" SDL_PRIu32, (*vertex_count));
     for (int i = 0; i < (*vertex_count); i++) {
-        (*vertf)[i].x = (float) (*vert128)[i].x / 12;
-        (*vertf)[i].y = (float) (*vert128)[i].y / 12;
-        (*vertf)[i].z = (float) (*vert128)[i].z / 12;
+        (*vertf)[i].x = (float) (*vert128)[i].x / 8;
+        (*vertf)[i].y = (float) (*vert128)[i].y / 8;
+        (*vertf)[i].z = (float) (*vert128)[i].z / 8;
     }
     return;
 }

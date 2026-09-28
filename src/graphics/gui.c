@@ -58,18 +58,42 @@ Uint32 power_of_two(uint32 input) {
     return output;
 }
 
+bool coords_in_rectf(float x, float y, float rect[4]) { // rect[4] = {x,y,w,h};
+    if ((rect[0] <= x) && (x <= rect[0] + rect[2]) && (rect[1] <= y) && (y <= rect[1] + rect[3])) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void gl_render_root_gui(float window_width, float window_height) { // https://stackoverflow.com/questions/28880562/rendering-text-with-sdl2-and-opengl
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_TEXTURE_2D);
+
     glBindTexture(GL_TEXTURE_2D, root_gui_gl_texture);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Use blurry texture mapping (replace GL_LINEAR with GL_NEAREST for blocky)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, root_gui_surface->w, root_gui_surface->h, 0,  GL_RGBA, GL_UNSIGNED_BYTE, root_gui_surface->pixels); // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
 
-    glColor4f(1.0, 1.0, 1.0, 1.0); //Don't use special coloring
-
     float x_scale = gui_texture_res/window_width;
     float y_scale = gui_texture_res/window_height;
     float x_offset = gui_texture_res/window_width - 1;
     float y_offset = 1 - gui_texture_res/window_height;
+    float quad_vertices[8] = {
+        -x_scale + x_offset, -y_scale + y_offset,
+        x_scale + x_offset, -y_scale + y_offset,
+        x_scale + x_offset, y_scale + y_offset,
+        -x_scale + x_offset, y_scale + y_offset
+    };
+    float tex_coords[8] = {
+        0, 1,
+        1, 1,
+        1, 0,
+        0, 0
+    };
+
+    glColor4f(1.0, 1.0, 1.0, 1.0); //Don't use special coloring
     glBegin(GL_QUADS);
     glTexCoord2f(0.0f, 1.0f);
     glVertex2f(-x_scale + x_offset, -y_scale + y_offset);
@@ -82,33 +106,31 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
 
     glEnd();
 
-    /*float quad_vertices[8] = {
-        -scale + x_offset, -scale + y_offset,
-        scale + x_offset, -scale + y_offset,
-        scale + x_offset, scale + y_offset,
-        -scale + x_offset, scale + y_offset
+    /*float gui_data[16] = {
+        -x_scale + x_offset, -y_scale + y_offset, 0, 1,
+        x_scale + x_offset, -y_scale + y_offset, 1, 1,
+        x_scale + x_offset, y_scale + y_offset, 1, 0,
+        -x_scale + x_offset, y_scale + y_offset, 0, 0
     };
-    float tex_coords[8] = {
-        0, 1,
-        1, 1,
-        1, 0,
-        0, 0
-    };
-    glTexCoordPointer(2, GL_FLOAT, 0, &tex_coords);
-    glVertexPointer(2, GL_FLOAT, 0, &quad_vertices);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glDrawArrays(GL_QUADS, 0, 1);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisableClientState(GL_VERTEX_ARRAY);*/
-}
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, &gui_data[0], GL_DYNAMIC_DRAW);
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2* sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
-bool coords_in_rectf(float x, float y, float rect[4]) { // rect[4] = {x,y,w,h};
-    if ((rect[0] <= x) && (x <= rect[0] + rect[2]) && (rect[1] <= y) && (y <= rect[1] + rect[3])) {
-        return true;
-    } else {
-        return false;
-    }
+    glBindVertexArray(vao);
+
+    glUseProgram(gui_shader_program);
+    glDrawArrays(GL_QUADS, 0, 1);
+
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_BLEND);
+    glUseProgram(0);*/
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last_tps, uint16 window_width, uint16 window_height) {
@@ -214,6 +236,8 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
 
     window_width = actual_width;
     window_width = actual_height;
+
+    gl_render_root_gui(root_window_width, root_window_height); // note
 }
 
 #endif

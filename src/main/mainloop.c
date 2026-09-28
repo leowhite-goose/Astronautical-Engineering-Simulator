@@ -37,11 +37,16 @@ SDL_AppResult AES_mainloop() {
     }
     //bool is_fullscreen = key_toggle(SDL_SCANCODE_F11);
     bool pan_camera = (mouse.right.toggle || touch_button[7]) && (root_window == SDL_GetMouseFocus());
-    static int cam_speed = 15;
+    static int cam_speed = 58;
     static int pan_sensitivity = -2;
     if (mouse.scrolling && key_down(SDL_SCANCODE_LSHIFT)) {cam_speed += mouse.wheel.y;}
     if (mouse.scrolling && key_down(SDL_SCANCODE_LCTRL)) {pan_sensitivity += mouse.wheel.y;}
-    float cam_vel = SDL_pow(2,cam_speed)/last_fps;
+    float cam_vel;
+    if (last_fps >= 1) {
+         cam_vel = SDL_pow(2,cam_speed)/last_fps;
+    } else {
+        cam_vel = 0;
+    }
     float pan_x, pan_y;
     if (!touch_button[7]) {
         pan_x = mouse.x_rel * SDL_pow(2,pan_sensitivity/4);
@@ -164,106 +169,13 @@ SDL_AppResult AES_mainloop() {
             root_cam.x += cam_move_x;
         }
     }
+    SDL_GL_SetSwapInterval(vsync);
 
     // 3D rendering
-    SDL_GL_SetSwapInterval(vsync);
-    /*vec3i128 translate;
-     translate.x = cam.x;                                                        *
-     translate.y = cam.y;
-     translate.z = cam.z;
-     //vert128_translate(&body[0].geo.vert_cnt, &body[0].geo.vert128, translate);*/
-
-    // draw a rectangle
-    glViewport(0, 0, root_window_width, root_window_height);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    /*float vertices[] = {
-        0.5f,  0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // top right
-        0.5f, -0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f,// bottom right
-        -0.5f, -0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f,// bottom left
-        -0.5f,  0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f// top left
-    };
-    unsigned int indices[] = {
-    0, 1, 3,  // first triangle
-    1, 2, 3   // second triangle
-    };
-    */
-    float vertices[] = {
-        0.5f,  0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // top right
-        0.5f, -0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // bottom right
-        -0.5f,  0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f, // top left
-        0.5f, -0.5f, -1.8f,   0.2f, 0.2f, 0.5f, 0.5f,// bottom right
-        -0.5f, -0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f,// bottom left
-        -0.5f,  0.5f, -1.9f,  1.0f, 0.0f, 0.0f, 0.5f // top left
-    };
-    //render_tetrahedra(&body[1].geo.vertf, &body[1].geo.tetra, &body[1].geo.vert128, body[1].geo.vert_cnt, body[1].geo.tetra_cnt, 0, root_cam); // rainbow-prise
-    //glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 120 * body[1].geo.tetra_cnt, &vertex_data_c[0], GL_DYNAMIC_DRAW); // glBufferSubData
-    render_triangles(body[0].geo.vert_cnt, body[0].geo.tetra_cnt * 4, &body[0].geo.vertf, &body[0].geo.vert128, &body[0].geo.tri, body[0].geo.vert_index_cnt, root_cam); // enterprise
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 30 * body[0].geo.tri_cnt, &vertex_data[0], GL_DYNAMIC_DRAW); // glBufferSubData
-    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(3* sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(7* sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    glUseProgram(shader_program);
-
-    const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-    float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1}; // 4x4 perspective matrix
-    perspective(60.0f, (float) root_window_width / root_window_height, (float) SDL_pow(2,0), (float) SDL_pow(2,128), projection_matrix);
-    mat4 view_matrix;
-    glm_mat4_identity(view_matrix);
-    glm_rotate(view_matrix, ((root_cam.b-90)*SDL_PI_F/180), (vec3) {1,0,0});
-    glm_rotate(view_matrix, ((-root_cam.a)*SDL_PI_F/180), (vec3) {0,1,0});
-    glm_rotate(view_matrix, ((root_cam.c)*SDL_PI_F/180), (vec3) {0,0,1});
-    glm_rotate(view_matrix, ((90)*SDL_PI_F/180), (vec3) {0,1,0});
-    glm_rotate(view_matrix, ((-90)*SDL_PI_F/180), (vec3) {1,0,0});
-    unsigned int view_loc = glGetUniformLocation(shader_program, "view");
-    unsigned int proj_loc = glGetUniformLocation(shader_program, "projection");
-    unsigned int light_pos_loc = glGetUniformLocation(shader_program, "light_pos");
-    glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
-    /*float *view_uniform = (float*) SDL_malloc(sizeof(float) * 16);
-    glGetnUniformfv(shader_program, view_loc, sizeof(float) * 16, view_uniform);
-    SDL_Log("Uniform - %.3f", *(view_uniform+0));*/
-    glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &projection_matrix[0]);
-    //SDL_Log("projloc %" SDL_PRIu32, proj_loc);
-    //SDL_Log("viewloc %" SDL_PRIu32, view_loc);
-    glUniform3f(light_pos_loc, 0, 0, 0);
-
-    glBindVertexArray(vao);
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    //glDrawArrays(GL_TRIANGLES, 0, body[1].geo.tetra_cnt*12);
-    glDrawArrays(GL_TRIANGLES, 0, body[0].geo.tetra_cnt*12);
-    glDisable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
-    glBindVertexArray(0);
-    glUseProgram(0);
+    render3D(root_window_width, root_window_height, root_cam);
 
     // 2D rendering (GUI overlay)
     onscreen_overlay(cam_speed, pan_sensitivity, last_fps, last_tps, root_window_width, root_window_height);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_TEXTURE_2D);
-    gl_render_root_gui(root_window_width, root_window_height); // note
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_BLEND);
 
     glFlush(); // note
     SDL_GL_SwapWindow(root_window);

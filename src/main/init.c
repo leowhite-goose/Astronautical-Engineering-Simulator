@@ -85,11 +85,7 @@ SDL_AppResult AES_init() {
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ebo);
 
-    normal_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // max of 8192 tetrahedral elements per model*; switch to using sane VBO
-    color_data = SDL_malloc(sizeof(float) * 48 * 8192 * 2); // ~1.3 MiB
-    vertex_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // 1.0 MiB
-
-    vertex_data_c = SDL_malloc(sizeof(float) * 120 * 8192 * 2);
+    vertex_data = SDL_malloc(sizeof(float) * 30 * 65536); // 65536 triangle max (per model); ~ 7.86 MB
 
     return SDL_APP_CONTINUE;
 }
