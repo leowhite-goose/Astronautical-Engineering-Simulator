@@ -16,11 +16,12 @@ void main()
     gl_FragDepth = log2(flogz) * 0.5 * Fcoef;
 
     // lighting
-    vec3 light_color = vec3(1.0,1.0,1.0);
+    vec3 light_color = vec3(1.0,1.0,1.0); //vec3(1.0,0.4,0.4);
     float ambient_strength = 0.2;
     vec3 ambient = ambient_strength * light_color;
 
-    vec3 light_dir = normalize(light_pos - frag_pos);
+    vec3 light_post = light_pos/(8e16);
+    vec3 light_dir = normalize(light_post - frag_pos);
     float diff = max(dot(frag_normal, light_dir), 0.0);// frag_normal.z * (-1); //max(dot(frag_normal, light_dir), 0.0);
     vec3 diffuse = diff * light_color;
 

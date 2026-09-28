@@ -119,6 +119,61 @@ void AES_generate_shaders() {
     }
 }
 
+void AES_generate_non_litshaders() {
+    int success;
+    char info_log[512];
+
+    char *vertex_shader_src;
+    char *fragment_shader_src;
+
+    char vertex_shader_rel_path[] = "src/graphics/vertex_shader.glsl";
+    char *vertex_path = NULL;
+    SDL_asprintf(&vertex_path, "%s" "%s", SDL_GetBasePath(), vertex_shader_rel_path);
+    vertex_shader_src = SDL_LoadFile(vertex_path, NULL);
+
+    char fragment_shader_rel_path[] = "src/graphics/non_lit_fragment_shader.glsl";
+    char *fragment_path = NULL;
+    SDL_asprintf(&fragment_path, "%s" "%s", SDL_GetBasePath(), fragment_shader_rel_path);
+    fragment_shader_src = SDL_LoadFile(fragment_path, NULL);
+
+    unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    const char *vertex_shader_source = vertex_shader_src;
+    //SDL_Log("%s", vertex_shader_src);
+    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
+    glCompileShader(vertex_shader);
+    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
+        SDL_Log("Vertex Shader Error: %s", info_log);
+    }
+
+    unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    const char *fragment_shader_source = fragment_shader_src;
+    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
+    glCompileShader(fragment_shader);
+    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
+        SDL_Log("Fragment Shader Error: %s", info_log);
+    }
+
+    non_lit_shader_program = glCreateProgram();
+    glAttachShader(non_lit_shader_program, vertex_shader);
+    glAttachShader(non_lit_shader_program, fragment_shader);
+    glLinkProgram(non_lit_shader_program);
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
+    glGetProgramiv(non_lit_shader_program, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(non_lit_shader_program, 512, NULL, info_log);
+        SDL_Log("Shader Program Error: %s", info_log);
+    }
+}
+
 void perspective(float fovY, float aspect, float z_near, float z_far, float* matrix) {
     float f = 1.0 / SDL_tanf(fovY * 0.5 * (SDL_PI_D / 180));
 
@@ -151,7 +206,7 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
     translate.y = -cam.y;
     translate.z = -cam.z;
     vert128_translate(&vertex_count, vert128, translate);
-    vert128_to_verf_graphics(&vertex_count, vert128, vertf);
+    vert128_to_verf(&vertex_count, vert128, vertf);
     translate.x = cam.x;
     translate.y = cam.y;
     translate.z = cam.z;
@@ -179,7 +234,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     translate.y = -cam.y;
     translate.z = -cam.z;
     vert128_translate(&vertex_count, vert128, translate);
-    vert128_to_verf_graphics(&vertex_count, vert128, nodes);
+    vert128_to_verf(&vertex_count, vert128, nodes);
     translate.x = cam.x;
     translate.y = cam.y;
     translate.z = cam.z;
@@ -233,7 +288,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     }
 }*/
 
-void render_body(int32 id, vec4f color) {
+void render_body(int32 id, vec4f color, bool is_lit) {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
@@ -261,7 +316,11 @@ void render_body(int32 id, vec4f color) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    glUseProgram(shader_program);
+    if (is_lit) {
+        glUseProgram(shader_program);
+    } else {
+        glUseProgram(non_lit_shader_program);
+    }
 
     const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
     float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1}; // 4x4 perspective matrix
@@ -278,7 +337,9 @@ void render_body(int32 id, vec4f color) {
     unsigned int light_pos_loc = glGetUniformLocation(shader_program, "light_pos");
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
     glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &projection_matrix[0]);
-    glUniform3f(light_pos_loc, 0, 0, 0);
+    //glUniform3f(light_pos_loc, 0, 0, 0);
+    //glUniform3f(light_pos_loc, (float) body[0].CM.t.p.x, (float) body[0].CM.t.p.y, (float) body[0].CM.t.p.z);
+    glUniform3f(light_pos_loc, 0*SCALE - root_cam.x, 1e9*SCALE - root_cam.y, 0 - root_cam.z);
 
     glBindVertexArray(vao);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -316,17 +377,17 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     vec4f color8 = {0.5,0.6,0.9,1.0};
     vec4f color9 = {0.6,0.6,0.6,1.0};
     vec4f color10 = {0.6,0.6,0.6,1.0};
-    render_body(0,color0);
-    render_body(1,color1);
-    render_body(2,color2);
-    render_body(3,color3);
-    render_body(4,color4);
-    render_body(5,color5);
-    render_body(6,color6);
-    render_body(7,color7);
-    render_body(8,color8);
-    render_body(9,color9);
-    render_body(10,color10);
+    render_body(0,color0,0);
+    render_body(1,color1,1);
+    render_body(2,color2,1);
+    render_body(3,color3,1);
+    render_body(4,color4,1);
+    render_body(5,color5,1);
+    render_body(6,color6,1);
+    render_body(7,color7,1);
+    render_body(8,color8,1);
+    render_body(9,color9,1);
+    render_body(10,color10,1);
 }
 
 #endif

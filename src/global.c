@@ -60,5 +60,6 @@ float *vertex_data_c;
 
 unsigned int vbo, vao, ebo;
 unsigned int shader_program;
+unsigned int non_lit_shader_program;
 
 #endif

@@ -3,7 +3,7 @@
 
 SDL_AppResult AES_init() {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
-    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.20", "SDL3-Project");
+    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.21", "SDL3-Project");
 
     // init SDL
     SDL_Init(SDL_INIT_VIDEO); // https://wiki.libsdl.org/SDL3/SDL_Init
@@ -51,6 +51,7 @@ SDL_AppResult AES_init() {
     SDL_DestroySurface(window_icon_surface);
 
     AES_generate_shaders();
+    AES_generate_non_litshaders();
 
     #ifndef __EMSCRIPTEN__
     char model_file_ENT_H[] = "meshes/TOS-Enterprise-G14.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml"//"meshes/20mm-Cube-4.xml"//"meshes/TOS-rip-FEMMeshGmsh002.xml"//"meshes/TOS-
@@ -71,37 +72,38 @@ SDL_AppResult AES_init() {
         int scale = 695700000; // radius
         translate.x = 0*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[0].geo.vert_cnt, &body[0].geo.vertd, &body[0].geo.vert128, SCALE*scale*2);
+        body[0].CM.t.p.x = translate.x; body[0].CM.t.p.y = translate.y; body[0].CM.t.p.z = translate.z;
         vert128_translate(&body[0].geo.vert_cnt, &body[0].geo.vert128, translate);
         scale = 2439700;
-        translate.x = 1e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 57.9e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[1].geo.vert_cnt, &body[1].geo.vertd, &body[1].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[1].geo.vert_cnt, &body[1].geo.vert128, translate);
         scale = 6051800;
-        translate.x = 2e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 108.2e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[2].geo.vert_cnt, &body[2].geo.vertd, &body[2].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[2].geo.vert_cnt, &body[2].geo.vert128, translate);
         scale = 6371000;
-        translate.x = 3e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 149.6e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[3].geo.vert_cnt, &body[3].geo.vertd, &body[3].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[3].geo.vert_cnt, &body[3].geo.vert128, translate);
         scale = 3389500;
-        translate.x = 4e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 227.9e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[4].geo.vert_cnt, &body[4].geo.vertd, &body[4].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[4].geo.vert_cnt, &body[4].geo.vert128, translate);
         scale = 69911000;
-        translate.x = 5e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 778.5e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[5].geo.vert_cnt, &body[5].geo.vertd, &body[5].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[5].geo.vert_cnt, &body[5].geo.vert128, translate);
         scale = 58232000;
-        translate.x = 6e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 1434e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[6].geo.vert_cnt, &body[6].geo.vertd, &body[6].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[6].geo.vert_cnt, &body[6].geo.vert128, translate);
         scale = 25362000;
-        translate.x = 7e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 2871e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[7].geo.vert_cnt, &body[7].geo.vertd, &body[7].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[7].geo.vert_cnt, &body[7].geo.vert128, translate);
         scale = 24622000;
-        translate.x = 8e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        translate.x = 4495e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
         vertd_to_vert128_scaled(&body[8].geo.vert_cnt, &body[8].geo.vertd, &body[8].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[8].geo.vert_cnt, &body[8].geo.vert128, translate);
 

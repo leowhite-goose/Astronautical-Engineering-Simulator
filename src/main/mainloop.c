@@ -30,6 +30,91 @@ SDL_AppResult AES_mainloop() {
     int cam_move_forward = key_down(SDL_SCANCODE_W) - key_down(SDL_SCANCODE_S) + touch_button[2] - touch_button[4];
     int cam_move_right = key_down(SDL_SCANCODE_A) - key_down(SDL_SCANCODE_D) + touch_button[1] - touch_button[3];
     int cam_move_up = key_down(SDL_SCANCODE_R) - key_down(SDL_SCANCODE_F) + touch_button[5] - touch_button[6];
+
+    bool move_to_body_1 = key_down(SDL_SCANCODE_1);
+    if (move_to_body_1) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[1].geo.vert128[0].x + SCALE*3000e3;
+        root_cam.y = body[1].geo.vert128[0].y + SCALE*7000e3; // 7000km
+        root_cam.z = body[1].geo.vert128[0].z;
+    }
+    bool move_to_body_2 = key_down(SDL_SCANCODE_2);
+    if (move_to_body_2) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[2].geo.vert128[0].x + SCALE*5000e3;
+        root_cam.y = body[2].geo.vert128[0].y + SCALE*12000e3;
+        root_cam.z = body[2].geo.vert128[0].z;
+    }
+    bool move_to_body_3 = key_down(SDL_SCANCODE_3);
+    if (move_to_body_3) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[3].geo.vert128[0].x + SCALE*5000e3;
+        root_cam.y = body[3].geo.vert128[0].y + SCALE*12000e3;
+        root_cam.z = body[3].geo.vert128[0].z;
+    }
+    bool move_to_body_4 = key_down(SDL_SCANCODE_4);
+    if (move_to_body_4) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[4].geo.vert128[0].x + SCALE*4000e3;
+        root_cam.y = body[4].geo.vert128[0].y + SCALE*9000e3;
+        root_cam.z = body[4].geo.vert128[0].z;
+    }
+    bool move_to_body_5 = key_down(SDL_SCANCODE_5);
+    if (move_to_body_5) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[5].geo.vert128[0].x + SCALE*50000e3;
+        root_cam.y = body[5].geo.vert128[0].y + SCALE*90000e3;
+        root_cam.z = body[5].geo.vert128[0].z;
+    }
+    bool move_to_body_6 = key_down(SDL_SCANCODE_6);
+    if (move_to_body_6) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[6].geo.vert128[0].x + SCALE*50000e3;
+        root_cam.y = body[6].geo.vert128[0].y + SCALE*90000e3;
+        root_cam.z = body[6].geo.vert128[0].z;
+    }
+    bool move_to_body_7 = key_down(SDL_SCANCODE_7);
+    if (move_to_body_7) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[7].geo.vert128[0].x + SCALE*40000e3;
+        root_cam.y = body[7].geo.vert128[0].y + SCALE*70000e3;
+        root_cam.z = body[7].geo.vert128[0].z;
+    }
+    bool move_to_body_8 = key_down(SDL_SCANCODE_8);
+    if (move_to_body_8) {
+        root_cam.a = 210;
+        root_cam.b = 90;
+        root_cam.c = 0;
+        root_cam.x = body[8].geo.vert128[0].x + SCALE*40000e3;
+        root_cam.y = body[8].geo.vert128[0].y + SCALE*70000e3;
+        root_cam.z = body[8].geo.vert128[0].z;
+    }
+
+
+    bool move_to_body_9 = key_down(SDL_SCANCODE_9);
+    if (move_to_body_9) {
+        root_cam.a = 45;
+        root_cam.b = 75;
+        root_cam.c = 0;
+        root_cam.x = -67*SCALE;
+        root_cam.y = -60*SCALE;
+        root_cam.z = -27*SCALE;
+    }
+
     char last_key[16];
     last_key_down(last_key, sizeof(last_key));
     if (SDL_strcmp(last_key, "No keys down")) {
