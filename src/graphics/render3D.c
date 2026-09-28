@@ -143,7 +143,7 @@ void perspective(float fovY, float aspect, float z_near, float z_far, float* mat
     matrix[15] = 0;
 }
 
-void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam) {
+void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam, vec4f color) {
     //SDL_Log("%" SDL_PRIu32, triangle_count);
     //SDL_Log("HYIj - %.3f", (float) (*vert128)[6].x);
     vec3i128 translate;
@@ -163,9 +163,9 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
         vec3f normal = {(float)normald.x,(float) normald.y,(float) normald.z};
         float transparency_ = 1.0;
         float temp_vertex_data[30] = {
-            (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, 0.8,0.8,0.8,transparency_, normal.x, normal.y, normal.z, // v0
-            (*vertf)[(*triangles)[i].y].x, (*vertf)[(*triangles)[i].y].y, (*vertf)[(*triangles)[i].y].z, 0.8,0.8,0.8,transparency_, normal.x, normal.y, normal.z, // v1
-            (*vertf)[(*triangles)[i].z].x, (*vertf)[(*triangles)[i].z].y, (*vertf)[(*triangles)[i].z].z, 0.8,0.8,0.8,transparency_, normal.x, normal.y, normal.z  // v2
+            (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v0
+            (*vertf)[(*triangles)[i].y].x, (*vertf)[(*triangles)[i].y].y, (*vertf)[(*triangles)[i].y].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v1
+            (*vertf)[(*triangles)[i].z].x, (*vertf)[(*triangles)[i].z].y, (*vertf)[(*triangles)[i].z].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z  // v2
         };
         for (int j = 0; j < 30; j++) {
             vertex_data[j + 30 * i] = temp_vertex_data[j];
@@ -233,7 +233,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     }
 }*/
 
-void render_body(int32 id) {
+void render_body(int32 id, vec4f color) {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
@@ -247,7 +247,7 @@ void render_body(int32 id) {
         0, 1, 3,  // first triangle
         1, 2, 3   // second triangle
     };*/
-    render_triangles(body[id].geo.vert_cnt, body[id].geo.tetra_cnt * 4, &body[id].geo.vertf, &body[id].geo.vert128, &body[id].geo.tri, body[id].geo.vert_index_cnt, root_cam); // enterprise
+    render_triangles(body[id].geo.vert_cnt, body[id].geo.tetra_cnt * 4, &body[id].geo.vertf, &body[id].geo.vert128, &body[id].geo.tri, body[id].geo.vert_index_cnt, root_cam, color); // enterprise
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 30 * body[id].geo.tri_cnt, &vertex_data[0], GL_DYNAMIC_DRAW); // glBufferSubData
     //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)0);
@@ -305,9 +305,28 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    render_body(0);
-    render_body(1);
-    render_body(2);
+    vec4f color0 = {1.0,1.0,1.0,1.0};
+    vec4f color1 = {0.7,0.7,0.7,1.0};
+    vec4f color2 = {0.8,0.7,0.4,1.0};
+    vec4f color3 = {0.5,0.6,0.8,1.0};
+    vec4f color4 = {0.8,0.5,0.5,1.0};
+    vec4f color5 = {0.7,0.6,0.4,1.0};
+    vec4f color6 = {0.7,0.6,0.3,1.0};
+    vec4f color7 = {0.5,0.6,0.8,1.0};
+    vec4f color8 = {0.5,0.6,0.9,1.0};
+    vec4f color9 = {0.6,0.6,0.6,1.0};
+    vec4f color10 = {0.6,0.6,0.6,1.0};
+    render_body(0,color0);
+    render_body(1,color1);
+    render_body(2,color2);
+    render_body(3,color3);
+    render_body(4,color4);
+    render_body(5,color5);
+    render_body(6,color6);
+    render_body(7,color7);
+    render_body(8,color8);
+    render_body(9,color9);
+    render_body(10,color10);
 }
 
 #endif

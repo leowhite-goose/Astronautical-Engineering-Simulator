@@ -62,22 +62,56 @@ SDL_AppResult AES_init() {
     char model_file_SPH_1[] = "meshes/Sphere_Diameter=1.xml";
     char sphere_diameter1[] = "meshes/Sphere_Diameter=1.xml"; // use for stars, planets, etc.
 
-    vec3i128 translate;
+    char *body_files[] = {sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, model_file_ENT_H, model_file_ENT_L};
 
-    load_fenics_mesh(model_file_ENT_H, &body[0].geo.vert_cnt, &body[0].geo.tetra_cnt, &body[0].geo.tri_cnt, &body[0].geo.vertf, &body[0].geo.vertd, &body[0].geo.vert128, &body[0].geo.tetra, &body[0].geo.tri, &body[0].geo.vert_index_cnt);
-        translate.x = 0; translate.y = 0; translate.z = 0;
-        vertd_to_vert128_scaled(&body[0].geo.vert_cnt, &body[0].geo.vertd, &body[0].geo.vert128, SCALE);
+    vec3i128 translate;
+    for (int i = 0; i < 11; i++) {
+        load_fenics_mesh(body_files[i], &body[i].geo.vert_cnt, &body[i].geo.tetra_cnt, &body[i].geo.tri_cnt, &body[i].geo.vertf, &body[i].geo.vertd, &body[i].geo.vert128, &body[i].geo.tetra, &body[i].geo.tri, &body[i].geo.vert_index_cnt);
+    }
+        int scale = 695700000; // radius
+        translate.x = 0*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[0].geo.vert_cnt, &body[0].geo.vertd, &body[0].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[0].geo.vert_cnt, &body[0].geo.vert128, translate);
-    load_fenics_mesh(model_file_ENT_L, &body[1].geo.vert_cnt, &body[1].geo.tetra_cnt, &body[1].geo.tri_cnt, &body[1].geo.vertf, &body[1].geo.vertd, &body[1].geo.vert128, &body[1].geo.tetra, &body[1].geo.tri, &body[1].geo.vert_index_cnt);
-        translate.x = 200*SCALE; translate.y = 0; translate.z = 0;
-        vertd_to_vert128_scaled(&body[1].geo.vert_cnt, &body[1].geo.vertd, &body[1].geo.vert128, SCALE);
+        scale = 2439700;
+        translate.x = 1e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[1].geo.vert_cnt, &body[1].geo.vertd, &body[1].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[1].geo.vert_cnt, &body[1].geo.vert128, translate);
-    load_fenics_mesh(model_file_SPH_1, &body[2].geo.vert_cnt, &body[2].geo.tetra_cnt, &body[2].geo.tri_cnt, &body[2].geo.vertf, &body[2].geo.vertd, &body[2].geo.vert128, &body[2].geo.tetra, &body[2].geo.tri, &body[2].geo.vert_index_cnt);
-        int numexp = 3;
-        translate.x = 100*SCALE; translate.y = -0.5*2*SDL_powf(2,numexp)*SCALE; translate.z = 0;
-        //vertd_to_vert128_scaled(&body[2].geo.vert_cnt, &body[2].geo.vertd, &body[2].geo.vert128, SCALE*SDL_powf(2,numexp));
-        vertd_to_vert128_scaled(&body[2].geo.vert_cnt, &body[2].geo.vertd, &body[2].geo.vert128, SCALE/10);
+        scale = 6051800;
+        translate.x = 2e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[2].geo.vert_cnt, &body[2].geo.vertd, &body[2].geo.vert128, SCALE*scale*2);
         vert128_translate(&body[2].geo.vert_cnt, &body[2].geo.vert128, translate);
+        scale = 6371000;
+        translate.x = 3e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[3].geo.vert_cnt, &body[3].geo.vertd, &body[3].geo.vert128, SCALE*scale*2);
+        vert128_translate(&body[3].geo.vert_cnt, &body[3].geo.vert128, translate);
+        scale = 3389500;
+        translate.x = 4e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[4].geo.vert_cnt, &body[4].geo.vertd, &body[4].geo.vert128, SCALE*scale*2);
+        vert128_translate(&body[4].geo.vert_cnt, &body[4].geo.vert128, translate);
+        scale = 69911000;
+        translate.x = 5e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[5].geo.vert_cnt, &body[5].geo.vertd, &body[5].geo.vert128, SCALE*scale*2);
+        vert128_translate(&body[5].geo.vert_cnt, &body[5].geo.vert128, translate);
+        scale = 58232000;
+        translate.x = 6e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[6].geo.vert_cnt, &body[6].geo.vertd, &body[6].geo.vert128, SCALE*scale*2);
+        vert128_translate(&body[6].geo.vert_cnt, &body[6].geo.vert128, translate);
+        scale = 25362000;
+        translate.x = 7e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[7].geo.vert_cnt, &body[7].geo.vertd, &body[7].geo.vert128, SCALE*scale*2);
+        vert128_translate(&body[7].geo.vert_cnt, &body[7].geo.vert128, translate);
+        scale = 24622000;
+        translate.x = 8e9*SCALE; translate.y = 1e9*SCALE; translate.z = 0;
+        vertd_to_vert128_scaled(&body[8].geo.vert_cnt, &body[8].geo.vertd, &body[8].geo.vert128, SCALE*scale*2);
+        vert128_translate(&body[8].geo.vert_cnt, &body[8].geo.vert128, translate);
+
+        translate.x = 0; translate.y = 0; translate.z = 0;
+        vertd_to_vert128_scaled(&body[9].geo.vert_cnt, &body[9].geo.vertd, &body[9].geo.vert128, SCALE);
+        vert128_translate(&body[9].geo.vert_cnt, &body[9].geo.vert128, translate);
+
+        translate.x = 200*SCALE; translate.y = 0; translate.z = 0;
+        vertd_to_vert128_scaled(&body[10].geo.vert_cnt, &body[10].geo.vertd, &body[10].geo.vert128, SCALE);
+        vert128_translate(&body[10].geo.vert_cnt, &body[10].geo.vert128, translate);
 
         //remove_shared_faces(body[0].geo.tri_cnt, &body[0].geo.tri);
 

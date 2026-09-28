@@ -37,7 +37,7 @@ SDL_AppResult AES_mainloop() {
     }
     //bool is_fullscreen = key_toggle(SDL_SCANCODE_F11);
     bool pan_camera = (mouse.right.toggle || touch_button[7]) && (root_window == SDL_GetMouseFocus());
-    static int cam_speed = 58;
+    static int cam_speed = 58; // 58, 80
     static int pan_sensitivity = -2;
     if (mouse.scrolling && key_down(SDL_SCANCODE_LSHIFT)) {cam_speed += mouse.wheel.y;}
     if (mouse.scrolling && key_down(SDL_SCANCODE_LCTRL)) {pan_sensitivity += mouse.wheel.y;}

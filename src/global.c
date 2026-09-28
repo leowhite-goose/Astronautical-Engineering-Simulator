@@ -46,7 +46,7 @@ static int32 touch_digital[8];
 
 // world
 SDL_Thread *physics_thread;
-struct body body[4];
+struct body body[16];
 
 // system
 int64 shortest_delay_ns;
