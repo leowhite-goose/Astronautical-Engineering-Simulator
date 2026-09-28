@@ -1,5 +1,5 @@
 # Astronautical-Engineering-Simulator
----
+![alt text](https://github.com/leowhite-goose/Astronautical-Engineering-Simulator/blob/main/RSS-System-Reduced-Distance.png?raw=true)
 ## About
 This is only really on Github so I can host a website demo to show off; this is a heavy work in progress and was basically just started (for fun). The idea is that, while I learn cool engineering stuff during my mechanical engineering undergrad (e.g., thermodynamics), I can use this as a study guide of sorts by implementing what I learn, here.
 
@@ -9,9 +9,10 @@ This project uses SDL3 and GL4ES--both pretty cool projects in my opinion.
 ## To-do List
 0. Standardize conventions (I have no idea what I'm doing; no, I won't use A.I.)
 1. ~~Fix multi-touch attempt~~ (done)
-2. Actually load object data into some world space (using 128bit integer coordinates; 1fm blocks out to 3.4 * 10^7 LY)
+2. ~~Actually load object data into some world space (using 128bit integer coordinates; 1fm blocks out to 3.4 * 10^7 LY)~~
 3. Test out Swartzchild n-body gravity (no idea if my implementation is right; use fp32 for math using 128bit coords)
 4. Gravity simulation using cells (i.e., allow for galaxy/universe-scale gravity; use with n-body at small scales)
+5. Fix web demo (web demo is currently behind, as this program is mixed shaders/FFP)
 ---
 ## Using the Program
 If you just want to run the program, using a machine running some typical desktop GNU Linux distro:
