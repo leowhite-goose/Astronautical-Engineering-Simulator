@@ -268,6 +268,16 @@ void vert128_to_verf(int32 *vertex_count, vec32i3i128 **vert128, vec32i3f **vert
     return;
 }
 
+void vert128_to_verf_graphics(int32 *vertex_count, vec32i3i128 **vert128, vec32i3f **vertf) {
+    //SDL_Log("%" SDL_PRIu32, (*vertex_count));
+    for (int i = 0; i < (*vertex_count); i++) {
+        (*vertf)[i].x = (float) (*vert128)[i].x / 12;
+        (*vertf)[i].y = (float) (*vert128)[i].y / 12;
+        (*vertf)[i].z = (float) (*vert128)[i].z / 12;
+    }
+    return;
+}
+
 void sort3i32(int32 *a, int32 *b, int32 *c) { // 1, 2, ... (increasing order); abc, acb, cab, bac, bca, cba
     if ((a < b) && (b < c)) {           // abc
         return;

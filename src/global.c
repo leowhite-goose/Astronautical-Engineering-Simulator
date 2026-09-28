@@ -20,7 +20,7 @@ SDL_Keymod keymod_state;
 struct mouse mouse;
 struct touch touch[10];
 
-#define SCALE 1e9
+#define SCALE 1e2 // 1e-1 1e2 1e9 1e35
 vec3f3i128 root_cam = {45,75,0,-67*SCALE,-60*SCALE,-27*SCALE};
 //vec3f3i128 cam_pos = {};
 
@@ -56,7 +56,6 @@ float *normal_data;
 float *color_data;
 float *vertex_data;
 uint16 gui_texture_res;
-float *normal_data_c;
 float *vertex_data_c;
 
 unsigned int vbo, vao, ebo;

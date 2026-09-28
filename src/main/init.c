@@ -89,8 +89,7 @@ SDL_AppResult AES_init() {
     color_data = SDL_malloc(sizeof(float) * 48 * 8192 * 2); // ~1.3 MiB
     vertex_data = SDL_malloc(sizeof(float) * 36 * 8192 * 2); // 1.0 MiB
 
-    normal_data_c = SDL_malloc(sizeof(float) * 36 * 8192 * 2);
-    vertex_data_c = SDL_malloc(sizeof(float) * 84 * 8192 * 2);
+    vertex_data_c = SDL_malloc(sizeof(float) * 120 * 8192 * 2);
 
     return SDL_APP_CONTINUE;
 }

@@ -251,6 +251,9 @@ glUniform4f_func glUniform4f = 0;
 
 typedef void (APIENTRY * glBufferSubData_func)(GLenum target, GLintptr offset, GLsizeiptr size, const void * data);
 glBufferSubData_func glBufferSubData = 0;
+
+typedef void (APIENTRY * glUniform3f_func)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
+glUniform3f_func glUniform3f = 0;
 #endif
 
 // structs

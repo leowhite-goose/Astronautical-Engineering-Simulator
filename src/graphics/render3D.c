@@ -60,6 +60,7 @@ void AES_init_opengl() {
     glProgramUniformMatrix4fv = (glProgramUniformMatrix4fv_func) SDL_GL_GetProcAddress("glProgramUniformMatrix4fv");
     glUniform4f = (glUniform4f_func) SDL_GL_GetProcAddress("glUniform4f");
     glBufferSubData = (glBufferSubData_func) SDL_GL_GetProcAddress("glBufferSubData");
+    glUniform3f = (glUniform3f_func) SDL_GL_GetProcAddress("glUniform3f");
     #endif
 }
 
@@ -180,82 +181,18 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
     translate.z = cam.z;
     vert128_translate(&vertex_count, vert128, translate);
     //SDL_Log("HYIf - %.3f", (float) (*vertf)[6].x);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
     for (int i = 0; i < triangle_count; i++) {
-        if ((*triangles)[i].w >= 0) {
-            vec3f normal = generate_normal((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
-            float temp_normal_data[9] = {
-                normal.x, normal.y, normal.z, // v0 v1 v2
-                normal.x, normal.y, normal.z,
-                normal.x, normal.y, normal.z,
-            };
-            float temp_color_data[12] = {
-                0.8,0.8,0.8,1.0,
-                0.8,0.8,0.8,1.0,
-                0.8,0.8,0.8,1.0
-            };
-            float temp_vertex_data[9] = {
-                (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, // v0
-                (*vertf)[(*triangles)[i].y].x, (*vertf)[(*triangles)[i].y].y, (*vertf)[(*triangles)[i].y].z, // v1
-                (*vertf)[(*triangles)[i].z].x, (*vertf)[(*triangles)[i].z].y, (*vertf)[(*triangles)[i].z].z, // v2
-            };
-            //SDL_Log("Tri_x - %.3f", temp_vertex_data[0]);
-            for (int j = 0; j < 9; j++) {
-                normal_data[j + 9 * i] = temp_normal_data[j];
-            }
-            for (int j = 0; j < 12; j++) {
-                color_data[j + 12 * i] = temp_color_data[j];
-            }
-            for (int j = 0; j < 9; j++) {
-                vertex_data[j + 9 * i] = temp_vertex_data[j];
-            }
-        } else {
-            float temp_normal_data[9] = {
-                0,0,0,
-                0,0,0,
-                0,0,0
-            };
-            float temp_color_data[12] = {
-                0,0,0,0,
-                0,0,0,0,
-                0,0,0,0
-            };
-            float temp_vertex_data[9] = {
-                0,0,0,
-                0,0,0,
-                0,0,0
-            };
-            for (int j = 0; j < 9; j++) {
-                normal_data[j + 9 * i] = temp_normal_data[j];
-            }
-            for (int j = 0; j < 12; j++) {
-                color_data[j + 12 * i] = temp_color_data[j];
-            }
-            for (int j = 0; j < 9; j++) {
-                vertex_data[j + 9 * i] = temp_vertex_data[j];
-            }
+        vec3f normal = generate_normal((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
+        float transparency_ = 1.0;
+        float temp_vertex_data[30] = {
+            (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, 0.8,0.8,0.8,transparency_, normal.x, normal.y, normal.z, // v0
+            (*vertf)[(*triangles)[i].y].x, (*vertf)[(*triangles)[i].y].y, (*vertf)[(*triangles)[i].y].z, 0.8,0.8,0.8,transparency_, normal.x, normal.y, normal.z, // v1
+            (*vertf)[(*triangles)[i].z].x, (*vertf)[(*triangles)[i].z].y, (*vertf)[(*triangles)[i].z].z, 0.8,0.8,0.8,transparency_, normal.x, normal.y, normal.z  // v2
+        };
+        for (int j = 0; j < 30; j++) {
+            vertex_data[j + 30 * i] = temp_vertex_data[j];
         }
     }
-    glVertexPointer(3, GL_FLOAT, 0, vertex_data);
-    glNormalPointer(GL_FLOAT, 0, normal_data);
-    glColorPointer(4, GL_FLOAT, 0, color_data);
-
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_NORMAL_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-
-    glDrawArrays(GL_TRIANGLES, 0, 3 * triangle_count);
-   /* int32 triangle_indicies[vert_index_cnt];
-    for (int j = 0; j < vert_index_cnt; j++) {
-        triangle_indicies[j] = (*vertf)[j].w;
-        SDL_Log("%" SDL_PRIs32, triangle_indicies[j]);
-    }
-    glDrawElements(GL_TRIANGLES, triangle_count * 3, GL_UNSIGNED_INT, triangle_indicies);*/
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_NORMAL_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
-    glDisable(GL_CULL_FACE);
 }
 
 void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128, uint32 vertex_count, int32 cell_count, bool debug, vec3f3i128 cam) {
@@ -264,7 +201,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     translate.y = -cam.y;
     translate.z = -cam.z;
     vert128_translate(&vertex_count, vert128, translate);
-    vert128_to_verf(&vertex_count, vert128, nodes);
+    vert128_to_verf_graphics(&vertex_count, vert128, nodes);
     translate.x = cam.x;
     translate.y = cam.y;
     translate.z = cam.z;
@@ -275,164 +212,31 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
         vec3f normal1 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].x]); // flipped
         vec3f normal2 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].z]);
         vec3f normal3 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].b]); // flipped
-        float temp_normal_data[36] = {
-            normal0.x, normal0.y, normal0.z, // v0 v1 v2
-            normal0.x, normal0.y, normal0.z,
-            normal0.x, normal0.y, normal0.z,
-
-            normal1.x, normal1.y, normal1.z, // v3 v2 v1
-            normal1.x, normal1.y, normal1.z,
-            normal1.x, normal1.y, normal1.z,
-
-            normal2.x, normal2.y, normal2.z, // v0 v2 v3
-            normal2.x, normal2.y, normal2.z,
-            normal2.x, normal2.y, normal2.z,
-
-            normal3.x, normal3.y, normal3.z, // v3
-            normal3.x, normal3.y, normal3.z, // v1
-            normal3.x, normal3.y, normal3.z  // v0
-        };
         float transparency_;
         if (debug) {
             transparency_ = 0.5;
         } else {
             transparency_ = 1.0;
         }
-        float temp_color_data[48] = {
-            1.0,0.0,0.0,transparency_,
-            1.0,0.0,0.0,transparency_,
-            1.0,0.0,0.0,transparency_,
+        float temp_vertex_data[120] = {
+            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,0.0,transparency_, normal0.x, normal0.y, normal0.z, // v0 // v0 v1 v2
+            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 1.0,0.0,0.0,transparency_, normal0.x, normal0.y, normal0.z, // v1
+            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 1.0,0.0,0.0,transparency_, normal0.x, normal0.y, normal0.z, // v2
 
-            0.0,1.0,0.0,transparency_,
-            0.0,1.0,0.0,transparency_,
-            0.0,1.0,0.0,transparency_,
+            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 0.0,1.0,0.0,transparency_, normal1.x, normal1.y, normal1.z, // v3 // v3 v2 v1
+            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 0.0,1.0,0.0,transparency_, normal1.x, normal1.y, normal1.z, // v2
+            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 0.0,1.0,0.0,transparency_, normal1.x, normal1.y, normal1.z, // v1
 
-            0.0,0.0,1.0,transparency_,
-            0.0,0.0,1.0,transparency_,
-            0.0,0.0,1.0,transparency_,
+            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 0.0,0.0,1.0,transparency_, normal2.x, normal2.y, normal2.z, // v0 // v0 v2 v3
+            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 0.0,0.0,1.0,transparency_, normal2.x, normal2.y, normal2.z, // v2
+            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 0.0,0.0,1.0,transparency_, normal2.x, normal2.y, normal2.z, // v3
 
-            1.0,0.0,1.0,transparency_,
-            1.0,0.0,1.0,transparency_,
-            1.0,0.0,1.0,transparency_
+            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 1.0,0.0,1.0,transparency_, normal3.x, normal3.y, normal3.z, // v3 // v3 v1 v0
+            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 1.0,0.0,1.0,transparency_, normal3.x, normal3.y, normal3.z, // v1
+            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,1.0,transparency_, normal3.x, normal3.y, normal3.z  // v0
         };
-        float temp_vertex_data[36] = {
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, // v0
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, // v1
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, // v2
-
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, // v3
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, // v2
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, // v1
-
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, // v0
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, // v2
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, // v3
-
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, // v3
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, // v1
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z  // v0
-        };
-        for (int j = 0; j < 36; j++) {
-            normal_data[j + 36 * i] = temp_normal_data[j];
-        }
-        for (int j = 0; j < 48; j++) {
-            color_data[j + 48 * i] = temp_color_data[j];
-        }
-        for (int j = 0; j < 36; j++) {
-            vertex_data[j + 36 * i] = temp_vertex_data[j];
-        }
-    }
-    /*GLuint vertex_vbo; // https://stackoverflow.com/questions/22298193/setting-color-attribute-for-a-vbo-in-opengl-using-the-fixed-function-pipeline
-     *   glGenBuffers(1, &vertex_vbo); // https://stackoverflow.com/questions/14234361/opengl-using-vbo-with-stdvector
-     *   glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo); // https://stackoverflow.com/questions/6696688/how-do-i-fix-the-following-gcc-warnings
-     *   glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), &vertex_data, GL_DYNAMIC_DRAW);
-     *   glBindBuffer(GL_ARRAY_BUFFER, 0);
-     *
-     *   glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
-     *   glVertexPointer(3, GL_FLOAT, 0, 0);*/
-
-    glVertexPointer(3, GL_FLOAT, 0, vertex_data);
-
-    glNormalPointer(GL_FLOAT, 0, normal_data);
-
-    glColorPointer(4, GL_FLOAT, 0, color_data);
-
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_NORMAL_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-
-    glDrawArrays(GL_TRIANGLES, 0, 12 * cell_count);
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_NORMAL_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
-
-    //glBindBuffer(GL_ARRAY_BUFFER,0);
-
-    if (!debug) {glDisable(GL_CULL_FACE);}
-}
-
-void render_tetrahedra_c(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128, uint32 vertex_count, int32 cell_count, bool debug, vec3f3i128 cam) {
-    vec3i128 translate;
-    translate.x = -cam.x;
-    translate.y = -cam.y;
-    translate.z = -cam.z;
-    vert128_translate(&vertex_count, vert128, translate);
-    vert128_to_verf(&vertex_count, vert128, nodes);
-    translate.x = cam.x;
-    translate.y = cam.y;
-    translate.z = cam.z;
-    vert128_translate(&vertex_count, vert128, translate);
-    if (!debug) {glEnable(GL_CULL_FACE); glCullFace(GL_BACK);}
-    for (int i = 0; i < cell_count; i++) {
-        vec3f normal0 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].y]);
-        vec3f normal1 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].x]); // flipped
-        vec3f normal2 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].z]);
-        vec3f normal3 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].b]); // flipped
-        float temp_normal_data[36] = {
-            normal0.x, normal0.y, normal0.z, // v0 v1 v2
-            normal0.x, normal0.y, normal0.z,
-            normal0.x, normal0.y, normal0.z,
-
-            normal1.x, normal1.y, normal1.z, // v3 v2 v1
-            normal1.x, normal1.y, normal1.z,
-            normal1.x, normal1.y, normal1.z,
-
-            normal2.x, normal2.y, normal2.z, // v0 v2 v3
-            normal2.x, normal2.y, normal2.z,
-            normal2.x, normal2.y, normal2.z,
-
-            normal3.x, normal3.y, normal3.z, // v3
-            normal3.x, normal3.y, normal3.z, // v1
-            normal3.x, normal3.y, normal3.z  // v0
-        };
-        float transparency_;
-        if (debug) {
-            transparency_ = 0.5;
-        } else {
-            transparency_ = 1.0;
-        }
-        float temp_vertex_data[] = {
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,0.0,transparency_, // v0
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 1.0,0.0,0.0,transparency_, // v1
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 1.0,0.0,0.0,transparency_, // v2
-
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 0.0,1.0,0.0,transparency_, // v3
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 0.0,1.0,0.0,transparency_, // v2
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 0.0,1.0,0.0,transparency_, // v1
-
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 0.0,0.0,1.0,transparency_, // v0
-            (*nodes)[(*cells)[i].y].x, (*nodes)[(*cells)[i].y].y, (*nodes)[(*cells)[i].y].z, 0.0,0.0,1.0,transparency_, // v2
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 0.0,0.0,1.0,transparency_, // v3
-
-            (*nodes)[(*cells)[i].z].x, (*nodes)[(*cells)[i].z].y, (*nodes)[(*cells)[i].z].z, 1.0,0.0,1.0,transparency_, // v3
-            (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 1.0,0.0,1.0,transparency_, // v1
-            (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,1.0,transparency_  // v0
-        };
-        for (int j = 0; j < 36; j++) {
-            normal_data_c[j + 36 * i] = temp_normal_data[j];
-        }
-        for (int j = 0; j < 84; j++) {
-            vertex_data_c[j + 84 * i] = temp_vertex_data[j];
+        for (int j = 0; j < 120; j++) {
+            vertex_data_c[j + 120 * i] = temp_vertex_data[j];
         }
     }
     if (!debug) {glDisable(GL_CULL_FACE);}
@@ -486,14 +290,14 @@ void draw_world_geometry(vec3f3i128 cam) {
 
     glEnable(GL_LIGHTING);
 
-    render_triangles(body[0].geo.vert_cnt, body[0].geo.tetra_cnt * 4, &body[0].geo.vertf, &body[0].geo.vert128, &body[0].geo.tri, body[0].geo.vert_index_cnt, cam); // enterprise
+    //render_triangles(body[0].geo.vert_cnt, body[0].geo.tetra_cnt * 4, &body[0].geo.vertf, &body[0].geo.vert128, &body[0].geo.tri, body[0].geo.vert_index_cnt, cam); // enterprise
 
     mat_emmision[0] = 0.5;
     mat_emmision[1] = 0.5;
     mat_emmision[2] = 0.5;
     mat_emmision[3] = 1;
     glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emmision);
-    render_triangles(body[2].geo.vert_cnt, body[2].geo.tetra_cnt * 4, &body[2].geo.vertf, &body[2].geo.vert128, &body[2].geo.tri, body[2].geo.vert_index_cnt, cam); // planet
+    //render_triangles(body[2].geo.vert_cnt, body[2].geo.tetra_cnt * 4, &body[2].geo.vertf, &body[2].geo.vert128, &body[2].geo.tri, body[2].geo.vert_index_cnt, cam); // planet
     mat_emmision[0] = 0;
     mat_emmision[1] = 0;
     mat_emmision[2] = 0;
@@ -522,7 +326,7 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     float projection_matrix_1[16];
 
     //far
-    perspectivef(60.0f, (float) window_width / window_height, (float) SDL_pow(2,31), (float) SDL_pow(2,40), projection_matrix_0);
+    perspectivef(60.0f, (float) window_width / window_height, (float) SDL_pow(2,10), (float) SDL_pow(2,20), projection_matrix_0);
     glLoadMatrixf(projection_matrix_0);
 
     glMatrixMode(GL_MODELVIEW);
