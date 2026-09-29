@@ -1,15 +1,9 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-#include "GL/gl.h"
-#include "GL/glext.h"
-#include "gl4esinit.h" // https://github.com/seekerluke/gl4es-web/blob/main/main.c
 #endif
 
-#ifndef __EMSCRIPTEN__
-#include <SDL3/SDL_opengl.h>
-#include <SDL3/SDL_opengl_glext.h> // https://wiki.libsdl.org/SDL3/SDL_GL_GetProcAddress
-//#include <SDL3/SDL_opengles.h>
-#endif
+#include <SDL3/SDL_opengles2.h>
+#include <SDL3/SDL_opengles2_gl2ext.h>
 
 #define SDL_MAIN_USE_CALLBACKS 1 // use the callbacks instead of main()
 #include <SDL3/SDL.h>

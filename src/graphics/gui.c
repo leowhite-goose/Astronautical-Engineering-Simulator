@@ -67,15 +67,6 @@ bool coords_in_rectf(float x, float y, float rect[4]) { // rect[4] = {x,y,w,h};
 }
 
 void gl_render_root_gui(float window_width, float window_height) { // https://stackoverflow.com/questions/28880562/rendering-text-with-sdl2-and-opengl
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, root_gui_gl_texture);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Use blurry texture mapping (replace GL_LINEAR with GL_NEAREST for blocky)
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, root_gui_surface->w, root_gui_surface->h, 0,  GL_RGBA, GL_UNSIGNED_BYTE, root_gui_surface->pixels); // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
-
     float x_scale = gui_texture_res/window_width;
     float y_scale = gui_texture_res/window_height;
     float x_offset = gui_texture_res/window_width - 1;
@@ -92,8 +83,17 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
         1, 0,
         0, 0
     };
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_TEXTURE_2D);
 
-    glColor4f(1.0, 1.0, 1.0, 1.0); //Don't use special coloring
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, root_gui_gl_texture);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Use blurry texture mapping (replace GL_LINEAR with GL_NEAREST for blocky)
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, root_gui_surface->w, root_gui_surface->h, 0,  GL_RGBA, GL_UNSIGNED_BYTE, root_gui_surface->pixels); // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
+
+    /*glColor4f(1.0, 1.0, 1.0, 1.0); //Don't use special coloring
     glBegin(GL_QUADS);
     glTexCoord2f(0.0f, 1.0f);
     glVertex2f(-x_scale + x_offset, -y_scale + y_offset);
@@ -104,15 +104,20 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
     glTexCoord2f(0.0f, 0.0f);
     glVertex2f(-x_scale + x_offset, y_scale + y_offset);
 
-    glEnd();
+    glEnd();*/
 
-    /*float gui_data[16] = {
-        -x_scale + x_offset, -y_scale + y_offset, 0, 1,
-        x_scale + x_offset, -y_scale + y_offset, 1, 1,
-        x_scale + x_offset, y_scale + y_offset, 1, 0,
-        -x_scale + x_offset, y_scale + y_offset, 0, 0
+    float gui_data[24] = {
+        -x_scale + x_offset, -y_scale + y_offset, 0, 1, // top left
+        x_scale + x_offset, -y_scale + y_offset, 1, 1, // top right
+        x_scale + x_offset, y_scale + y_offset, 1, 0, // bottom right
+
+        -x_scale + x_offset, y_scale + y_offset, 0, 0, // bottom left
+        -x_scale + x_offset, -y_scale + y_offset, 0, 1, // top left
+        x_scale + x_offset, y_scale + y_offset, 1, 0 // bottom right
     };
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, &gui_data[0], GL_DYNAMIC_DRAW);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 24, &gui_data[0], GL_DYNAMIC_DRAW);
     //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -123,12 +128,12 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
 
     glBindVertexArray(vao);
 
-    glUseProgram(gui_shader_program);
-    glDrawArrays(GL_QUADS, 0, 1);
+    glUseProgram(tex_shader_program);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);
-    glUseProgram(0);*/
+    glUseProgram(0);
 
     glBindTexture(GL_TEXTURE_2D, 0);
 }

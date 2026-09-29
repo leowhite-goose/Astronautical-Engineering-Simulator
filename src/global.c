@@ -56,10 +56,10 @@ float *normal_data;
 float *color_data;
 float *vertex_data;
 uint16 gui_texture_res;
-float *vertex_data_c;
 
 unsigned int vbo, vao, ebo;
 unsigned int shader_program;
-unsigned int non_lit_shader_program;
+unsigned int unlit_shader;
+unsigned int tex_shader_program;
 
 #endif

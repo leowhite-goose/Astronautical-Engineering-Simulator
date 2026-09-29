@@ -8,16 +8,14 @@ void AES_init_opengl() {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     root_gl_context = SDL_GL_CreateContext(root_window);
     #ifdef __EMSCRIPTEN__
-    initialize_gl4es();
-    bool fill = true;
-    SDL_SetWindowFillDocument(root_window, fill);
+    SDL_SetWindowFillDocument(root_window, true);
     #endif
     SDL_GL_SetSwapInterval(1); // note
 
     int opengl_major_version, opengl_minor_version, opengl_profile, depth_size;
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0x0001); // https://wiki.libsdl.org/SDL3/SDL_GLProfile
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0x0004); // https://wiki.libsdl.org/SDL3/SDL_GLProfile
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &opengl_major_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &opengl_minor_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &opengl_profile);
@@ -34,34 +32,8 @@ void AES_init_opengl() {
     }
     SDL_Log("Depth size (bits): %" SDL_PRIu32, depth_size);
     /* Get function pointers for opengl_ext functions */
-    #ifndef __EMSCRIPTEN__
-    glGenBuffers = (glGenBuffers_func) SDL_GL_GetProcAddress("glGenBuffers");
-    glBindBuffer = (glBindBuffer_func) SDL_GL_GetProcAddress("glBindBuffer");
-    glBufferData = (glBufferData_func) SDL_GL_GetProcAddress("glBufferData");
-    glCreateShader = (glCreateShader_func) SDL_GL_GetProcAddress("glCreateShader");
-    glShaderSource = (glShaderSource_func) SDL_GL_GetProcAddress("glShaderSource");
-    glCompileShader = (glCompileShader_func) SDL_GL_GetProcAddress("glCompileShader");
-    glCreateProgram = (glCreateProgram_func) SDL_GL_GetProcAddress("glCreateProgram");
-    glAttachShader = (glAttachShader_func) SDL_GL_GetProcAddress("glAttachShader");
-    glLinkProgram = (glLinkProgram_func) SDL_GL_GetProcAddress("glLinkProgram");
-    glDeleteShader = (glDeleteShader_func) SDL_GL_GetProcAddress("glDeleteShader");
     glGenVertexArrays = (glGenVertexArrays_func) SDL_GL_GetProcAddress("glGenVertexArrays");
     glBindVertexArray = (glBindVertexArray_func) SDL_GL_GetProcAddress("glBindVertexArray");
-    glVertexAttribPointer = (glVertexAttribPointer_func) SDL_GL_GetProcAddress("glVertexAttribPointer");
-    glEnableVertexAttribArray = (glEnableVertexAttribArray_func) SDL_GL_GetProcAddress("glEnableVertexAttribArray");
-    glUseProgram = (glUseProgram_func) SDL_GL_GetProcAddress("glUseProgram");
-    glGetProgramiv = (glGetProgramiv_func) SDL_GL_GetProcAddress("glGetProgramiv");
-    glGetProgramInfoLog = (glGetProgramInfoLog_func) SDL_GL_GetProcAddress("glGetProgramInfoLog");
-    glGetShaderiv = (glGetShaderiv_func) SDL_GL_GetProcAddress("glGetShaderiv");
-    glGetShaderInfoLog = (glGetShaderInfoLog_func) SDL_GL_GetProcAddress("glGetShaderInfoLog");
-    glUniformMatrix4fv = (glUniformMatrix4fv_func) SDL_GL_GetProcAddress("glUniformMatrix4fv");
-    glGetUniformLocation = (glGetUniformLocation_func) SDL_GL_GetProcAddress("glGetUniformLocation");
-    glGetnUniformfv = (glGetnUniformfv_func) SDL_GL_GetProcAddress("glGetnUniformfv");
-    glProgramUniformMatrix4fv = (glProgramUniformMatrix4fv_func) SDL_GL_GetProcAddress("glProgramUniformMatrix4fv");
-    glUniform4f = (glUniform4f_func) SDL_GL_GetProcAddress("glUniform4f");
-    glBufferSubData = (glBufferSubData_func) SDL_GL_GetProcAddress("glBufferSubData");
-    glUniform3f = (glUniform3f_func) SDL_GL_GetProcAddress("glUniform3f");
-    #endif
 }
 
 void AES_generate_shaders() {
@@ -119,7 +91,7 @@ void AES_generate_shaders() {
     }
 }
 
-void AES_generate_non_litshaders() {
+void AES_generate_unlit_shaders() {
     int success;
     char info_log[512];
 
@@ -159,17 +131,72 @@ void AES_generate_non_litshaders() {
         SDL_Log("Fragment Shader Error: %s", info_log);
     }
 
-    non_lit_shader_program = glCreateProgram();
-    glAttachShader(non_lit_shader_program, vertex_shader);
-    glAttachShader(non_lit_shader_program, fragment_shader);
-    glLinkProgram(non_lit_shader_program);
+    unlit_shader = glCreateProgram();
+    glAttachShader(unlit_shader, vertex_shader);
+    glAttachShader(unlit_shader, fragment_shader);
+    glLinkProgram(unlit_shader);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
-    glGetProgramiv(non_lit_shader_program, GL_LINK_STATUS, &success);
+    glGetProgramiv(unlit_shader, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(non_lit_shader_program, 512, NULL, info_log);
+        glGetProgramInfoLog(unlit_shader, 512, NULL, info_log);
+        SDL_Log("Shader Program Error: %s", info_log);
+    }
+}
+
+void AES_generate_tex_shaders() {
+    int success;
+    char info_log[512];
+
+    char *vertex_shader_src;
+    char *fragment_shader_src;
+
+    char vertex_shader_rel_path[] = "src/graphics/gui_vertex_shader.glsl";
+    char *vertex_path = NULL;
+    SDL_asprintf(&vertex_path, "%s" "%s", SDL_GetBasePath(), vertex_shader_rel_path);
+    vertex_shader_src = SDL_LoadFile(vertex_path, NULL);
+
+    char fragment_shader_rel_path[] = "src/graphics/gui_fragment_shader.glsl";
+    char *fragment_path = NULL;
+    SDL_asprintf(&fragment_path, "%s" "%s", SDL_GetBasePath(), fragment_shader_rel_path);
+    fragment_shader_src = SDL_LoadFile(fragment_path, NULL);
+
+    unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    const char *vertex_shader_source = vertex_shader_src;
+    //SDL_Log("%s", vertex_shader_src);
+    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
+    glCompileShader(vertex_shader);
+    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
+        SDL_Log("Vertex Shader Error: %s", info_log);
+    }
+
+    unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    const char *fragment_shader_source = fragment_shader_src;
+    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
+    glCompileShader(fragment_shader);
+    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
+        SDL_Log("Fragment Shader Error: %s", info_log);
+    }
+
+    tex_shader_program = glCreateProgram();
+    glAttachShader(tex_shader_program, vertex_shader);
+    glAttachShader(tex_shader_program, fragment_shader);
+    glLinkProgram(tex_shader_program);
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
+    glGetProgramiv(tex_shader_program, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(tex_shader_program, 512, NULL, info_log);
         SDL_Log("Shader Program Error: %s", info_log);
     }
 }
@@ -269,7 +296,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
             (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,1.0,transparency_, normal3.x, normal3.y, normal3.z  // v0
         };
         for (int j = 0; j < 120; j++) {
-            vertex_data_c[j + 120 * i] = temp_vertex_data[j];
+            vertex_data[j + 120 * i] = temp_vertex_data[j];
         }
     }
 }
@@ -319,7 +346,7 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     if (is_lit) {
         glUseProgram(shader_program);
     } else {
-        glUseProgram(non_lit_shader_program);
+        glUseProgram(unlit_shader);
     }
 
     const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
@@ -332,9 +359,18 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     glm_rotate(view_matrix, ((root_cam.c)*SDL_PI_F/180), (vec3) {0,0,1});
     glm_rotate(view_matrix, ((90)*SDL_PI_F/180), (vec3) {0,1,0});
     glm_rotate(view_matrix, ((-90)*SDL_PI_F/180), (vec3) {1,0,0});
-    unsigned int view_loc = glGetUniformLocation(shader_program, "view");
-    unsigned int proj_loc = glGetUniformLocation(shader_program, "projection");
-    unsigned int light_pos_loc = glGetUniformLocation(shader_program, "light_pos");
+    unsigned int view_loc;
+    unsigned int proj_loc;
+    unsigned int light_pos_loc;
+    if (is_lit) {
+        view_loc = glGetUniformLocation(shader_program, "view");
+        proj_loc = glGetUniformLocation(shader_program, "projection");
+        light_pos_loc = glGetUniformLocation(shader_program, "light_pos");
+    } else {
+        view_loc = glGetUniformLocation(unlit_shader, "view");
+        proj_loc = glGetUniformLocation(unlit_shader, "projection");
+        light_pos_loc = glGetUniformLocation(unlit_shader, "light_pos");
+    }
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
     glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &projection_matrix[0]);
     //glUniform3f(light_pos_loc, 0, 0, 0);

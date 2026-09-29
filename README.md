@@ -4,7 +4,7 @@
 This is only really on Github so I can host a website demo to show off; this is a heavy work in progress and was basically just started (for fun). The idea is that, while I learn cool engineering stuff during my mechanical engineering undergrad (e.g., thermodynamics), I can use this as a study guide of sorts by implementing what I learn, here.
 
 ## Acknowledgments
-This project uses SDL3 and GL4ES--both pretty cool projects in my opinion.
+This project uses SDL3 and cglm--both pretty cool projects (AES initially used GL4ES too, but doesn't anymore; that's also a cool project you should check out)
 
 ## To-do List
 0. Standardize conventions (I have no idea what I'm doing; no, I won't use A.I.)
@@ -12,7 +12,7 @@ This project uses SDL3 and GL4ES--both pretty cool projects in my opinion.
 2. ~~Actually load object data into some world space (using 128bit integer coordinates; 1fm blocks out to 3.4 * 10^7 LY)~~
 3. Test out Swartzchild n-body gravity (no idea if my implementation is right; use fp32 for math using 128bit coords)
 4. Gravity simulation using cells (i.e., allow for galaxy/universe-scale gravity; use with n-body at small scales)
-5. Fix web demo (web demo is currently behind, as this program is mixed shaders/FFP)
+5. ~~Fix web demo (web demo is currently behind, as this program is mixed shaders/FFP)~~
 ---
 ## Using the Program
 If you just want to run the program, using a machine running some typical desktop GNU Linux distro:
@@ -45,7 +45,7 @@ If you just want to run the program, using a machine running some typical deskto
 ### Compiling for Emscripten
 1. search "emscripten" and go through the intro steps for setting it up; you'll its commands to run the following:
 2. to build:
-    - emcc src/main/main.c lib/gl4es-master/lib/libGL.a -o index.js -I lib/gl4es-master/include -s FULL_ES2=1 -lGL --use-port=sdl3 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=24mb -s MAXIMUM_MEMORY=384mb -s TOTAL_STACK=16mb --embed-file data/icon.png --embed-file meshes/TOS-rip-FEMMeshGmsh002.xml --embed-file meshes/TOS-Enterprise-G14.xml -DSDL_THREADS-ON -pthread -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency
+    - emcc src/main/main.c -o index.js --use-port=sdl3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=24mb -s MAXIMUM_MEMORY=384mb -s TOTAL_STACK=16mb -DSDL_THREADS-ON -pthread -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency --embed-file data/icon.png --embed-file meshes/TOS-rip-FEMMeshGmsh002.xml --embed-file meshes/TOS-Enterprise-G14.xml --embed-file meshes/Sphere_Diameter=1.xml --embed-file src/graphics/vertex_shader.glsl --embed-file src/graphics/fragment_shader.glsl --embed-file src/graphics/gui_vertex_shader.glsl --embed-file src/graphics/gui_fragment_shader.glsl --embed-file src/graphics/non_lit_fragment_shader.glsl
         - note: build command below targets "index.js" and leaves "index.html" untouched; target "index.html" to regen all website-related files
 3. to run a server to host the generated site:
     - emrun ./index.html                        // starts server & auto-opens a tab w/ default browser

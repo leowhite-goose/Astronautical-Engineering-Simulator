@@ -50,8 +50,11 @@ SDL_AppResult AES_init() {
     SDL_SetWindowIcon(root_window, window_icon_surface);
     SDL_DestroySurface(window_icon_surface);
 
+
+    AES_generate_unlit_shaders();
     AES_generate_shaders();
-    AES_generate_non_litshaders();
+    AES_generate_tex_shaders();
+
 
     #ifndef __EMSCRIPTEN__
     char model_file_ENT_H[] = "meshes/TOS-Enterprise-G14.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml"//"meshes/20mm-Cube-4.xml"//"meshes/TOS-rip-FEMMeshGmsh002.xml"//"meshes/TOS-
