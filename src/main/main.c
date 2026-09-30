@@ -24,10 +24,10 @@
 //#include "../physics/thermodynamics.c"
 //#include "../physics/materials.c"
 //#include "../physics/electromagnetism.c"
-#include "../physics/physics_thread.c"
 
-#include "../main/init.c"
 #include "../main/events.c"
+#include "../physics/physics_thread.c"
+#include "../main/init.c"
 #include "../main/mainloop.c"
 #include "../main/quit.c"
 

@@ -11,7 +11,7 @@ uniform highp vec3 light_pos;
 void main()
 {
     // depth buffer
-    highp float farplane = 5.67e37; //3.40282e38/6;
+    highp float farplane = 1.36e36; //5.67e37; //3.40282e38/6;
     highp float Fcoef = 2.0 / log2(farplane + 1.0);
     gl_FragDepth = log2(flogz) * 0.5 * Fcoef;
 
@@ -20,11 +20,13 @@ void main()
     highp float ambient_strength = 0.2;
     highp vec3 ambient = ambient_strength * light_color;
 
-    highp vec3 light_post = light_pos/(8e16);
+    // diffusion
+    highp vec3 light_post = light_pos/(1e20);
     highp vec3 light_dir = normalize(light_post - frag_pos);
     highp float diff = max(dot(frag_normal, light_dir), 0.0);// frag_normal.z * (-1); //max(dot(frag_normal, light_dir), 0.0);
     highp vec3 diffuse = diff * light_color;
 
+    // final color
     highp vec4 result = vec4(ambient + diffuse, 1.0) * element_base_color;
     frag_color = result;
 }

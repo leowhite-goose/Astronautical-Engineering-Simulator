@@ -235,7 +235,7 @@ void load_fenics_mesh(char *rel_file_path, int32 *out_vertex_count, int32 *out_t
     SDL_free(file_path);
 }
 
-void vertd_to_vert128_scaled(int32 *vertex_count, vec32i3d **vertd, vec32i3i128 **vert128, double scale) {
+void vertd_i_to_vert128_scaled(int32 *vertex_count, vec32i3d **vertd, vec32i3i128 **vert128, double scale) {
     for (int i = 0; i < (*vertex_count); i++) {
         double tmp_x = (double) (*vertd)[i].x * scale;
         double tmp_y = (double) (*vertd)[i].y * scale;
@@ -258,13 +258,37 @@ void vert128_translate(int32 *vertex_count, vec32i3i128 **vert128, vec3i128 tran
     return;
 }
 
-void vert128_to_verf(int32 *vertex_count, vec32i3i128 **vert128, vec32i3f **vertf) {
+void vert128_to_verf_i(int32 *vertex_count, vec32i3i128 **vert128, vec32i3f **vertf) {
     //SDL_Log("%" SDL_PRIu32, (*vertex_count));
     for (int i = 0; i < (*vertex_count); i++) {
         (*vertf)[i].x = (float) (*vert128)[i].x;
         (*vertf)[i].y = (float) (*vert128)[i].y;
         (*vertf)[i].z = (float) (*vert128)[i].z;
     }
+    return;
+}
+
+void vert128_to_verf(int32 *vertex_count, vec32i3i128 **vert128, vec3f **vertf) {
+    //SDL_Log("%" SDL_PRIu32, (*vertex_count));
+    for (int i = 0; i < (*vertex_count); i++) {
+        (*vertf)[i].x = (float) ((double) (*vert128)[i].x/SCALE);
+        (*vertf)[i].y = (float) ((double) (*vert128)[i].y/SCALE);
+        (*vertf)[i].z = (float) ((double) (*vert128)[i].z/SCALE);
+    }
+    return;
+}
+
+void vec3f_to_vert128(int32 *vertex_count, vec3f **vertf, vec32i3i128 **vert128, double scale) {
+    for (int i = 0; i < (*vertex_count); i++) {
+        float tmp_x = (float) (*vertf)[i].x * scale;
+        float tmp_y = (float) (*vertf)[i].y * scale;
+        float tmp_z = (float) (*vertf)[i].z * scale;
+        (*vert128)[i].x = (int128) tmp_x;
+        (*vert128)[i].y = (int128) tmp_y;
+        (*vert128)[i].z = (int128) tmp_z;
+        //SDL_Log("HYI - %.3f", (float) (*vert128)[i].x);
+    }
+    //SDL_Log("HYI - %.3f", (float) (*vert128)[6].x);
     return;
 }
 
@@ -402,4 +426,42 @@ void remove_shared_faces (int32 triangle_count, vec4i32 **triangles) {
             }
         }
     }
+}
+
+void rotate_128i(int32 vertex_count, vec32i3i128 **vert128, vec3i128 CoR, vec3f rotation_axis, float angle) {
+    hold_rendering = true;
+    for (int i = 0; i < vertex_count; i++) {
+        (*vert128)[i].x = (*vert128)[i].x - CoR.x;
+        (*vert128)[i].y = (*vert128)[i].y - CoR.y;
+        (*vert128)[i].z = (*vert128)[i].z - CoR.z;
+    }
+
+    vec3f *vert3flocal = (vec3f *) SDL_malloc(sizeof(vec3f) * vertex_count);
+    vert128_to_verf(&vertex_count, vert128, &vert3flocal);
+
+    float rotation_matrix[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+    for (int i = 0; i < vertex_count; i++) {
+        glm_rotate_make(rotation_matrix, angle, (float *) &rotation_axis);
+    }
+
+    for (int i = 0; i < vertex_count; i++) { // https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations
+        float x_prev = vert3flocal[i].x;
+        float y_prev = vert3flocal[i].y;
+        float z_prev = vert3flocal[i].z;
+
+        vert3flocal[i].x = x_prev * rotation_matrix[0][0] + y_prev * rotation_matrix[0][1] + z_prev * rotation_matrix[0][2];
+        vert3flocal[i].y = x_prev * rotation_matrix[1][0] + y_prev * rotation_matrix[1][1] + z_prev * rotation_matrix[1][2];
+        vert3flocal[i].z = x_prev * rotation_matrix[2][0] + y_prev * rotation_matrix[2][1] + z_prev * rotation_matrix[2][2];
+    }
+
+    vec3f_to_vert128(&vertex_count, &vert3flocal, vert128, SCALE);
+    SDL_free(vert3flocal);
+
+    for (int i = 0; i < vertex_count; i++) {
+        (*vert128)[i].x = (*vert128)[i].x + CoR.x;
+        (*vert128)[i].y = (*vert128)[i].y + CoR.y;
+        (*vert128)[i].z = (*vert128)[i].z + CoR.z;
+    }
+    hold_rendering = false;
+    return;
 }

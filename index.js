@@ -6178,22 +6178,9 @@ var getEmscriptenSupportedExtensions = ctx => {
   return ctx.getSupportedExtensions()?.filter(ext => supportedExtensions.includes(ext)) ?? [];
 };
 
-var registerPreMainLoop = f => {
-  // Does nothing unless $MainLoop is included/used.
-  typeof MainLoop != "undefined" && MainLoop.preMainLoop.push(f);
-};
-
-var webglBufferSubData = (target, offset, size, data, src = (growMemViews(), HEAPU8)) => {
-  if (true) {
-    size && GLctx.bufferSubData(target, offset, src, data, size);
-    return;
-  }
-};
-
 var GL = {
   counter: 1,
   buffers: [],
-  mappedBuffers: {},
   programs: [],
   framebuffers: [],
   renderbuffers: [],
@@ -6206,8 +6193,6 @@ var GL = {
   samplers: [],
   transformFeedbacks: [],
   syncs: [],
-  byteSizeByTypeRoot: 5120,
-  byteSizeByType: [ 1, 1, 2, 2, 4, 4, 4, 2, 3, 4, 8 ],
   stringCache: {},
   stringiCache: {},
   unpackAlignment: 4,
@@ -6221,11 +6206,6 @@ var GL = {
     var ret = GL.counter++;
     for (var i = table.length; i < ret; i++) {
       table[i] = null;
-    }
-    // Skip over any non-null elements that might have been created by
-    // glBindBuffer.
-    while (table[ret]) {
-      ret = GL.counter++;
     }
     return ret;
   },
@@ -6242,103 +6222,6 @@ var GL = {
       (growMemViews(), HEAP32)[(((buffers) + (i * 4)) >> 2)] = id;
     }
   },
-  MAX_TEMP_BUFFER_SIZE: 2097152,
-  numTempVertexBuffersPerSize: 64,
-  log2ceilLookup: i => 32 - Math.clz32(i ? i - 1 : 0),
-  generateTempBuffers: (quads, context) => {
-    var largestIndex = GL.log2ceilLookup(GL.MAX_TEMP_BUFFER_SIZE);
-    context.tempVertexBufferCounters1 = [];
-    context.tempVertexBufferCounters2 = [];
-    context.tempVertexBufferCounters1.length = context.tempVertexBufferCounters2.length = largestIndex + 1;
-    context.tempVertexBuffers1 = [];
-    context.tempVertexBuffers2 = [];
-    context.tempVertexBuffers1.length = context.tempVertexBuffers2.length = largestIndex + 1;
-    context.tempIndexBuffers = [];
-    context.tempIndexBuffers.length = largestIndex + 1;
-    for (var i = 0; i <= largestIndex; ++i) {
-      context.tempIndexBuffers[i] = null;
-      // Created on-demand
-      context.tempVertexBufferCounters1[i] = context.tempVertexBufferCounters2[i] = 0;
-      var ringbufferLength = GL.numTempVertexBuffersPerSize;
-      context.tempVertexBuffers1[i] = [];
-      context.tempVertexBuffers2[i] = [];
-      var ringbuffer1 = context.tempVertexBuffers1[i];
-      var ringbuffer2 = context.tempVertexBuffers2[i];
-      ringbuffer1.length = ringbuffer2.length = ringbufferLength;
-      for (var j = 0; j < ringbufferLength; ++j) {
-        ringbuffer1[j] = ringbuffer2[j] = null;
-      }
-    }
-    if (quads) {
-      // GL_QUAD indexes can be precalculated
-      context.tempQuadIndexBuffer = GLctx.createBuffer();
-      context.GLctx.bindBuffer(34963, context.tempQuadIndexBuffer);
-      var numIndexes = GL.MAX_TEMP_BUFFER_SIZE >> 1;
-      var quadIndexes = new Uint16Array(numIndexes);
-      var i = 0, v = 0;
-      while (1) {
-        quadIndexes[i++] = v;
-        if (i >= numIndexes) break;
-        quadIndexes[i++] = v + 1;
-        if (i >= numIndexes) break;
-        quadIndexes[i++] = v + 2;
-        if (i >= numIndexes) break;
-        quadIndexes[i++] = v;
-        if (i >= numIndexes) break;
-        quadIndexes[i++] = v + 2;
-        if (i >= numIndexes) break;
-        quadIndexes[i++] = v + 3;
-        if (i >= numIndexes) break;
-        v += 4;
-      }
-      context.GLctx.bufferData(34963, quadIndexes, 35044);
-      context.GLctx.bindBuffer(34963, null);
-    }
-  },
-  getTempVertexBuffer: sizeBytes => {
-    var idx = GL.log2ceilLookup(sizeBytes);
-    var ringbuffer = GL.currentContext.tempVertexBuffers1[idx];
-    var nextFreeBufferIndex = GL.currentContext.tempVertexBufferCounters1[idx];
-    GL.currentContext.tempVertexBufferCounters1[idx] = (GL.currentContext.tempVertexBufferCounters1[idx] + 1) & (GL.numTempVertexBuffersPerSize - 1);
-    var vbo = ringbuffer[nextFreeBufferIndex];
-    if (vbo) {
-      return vbo;
-    }
-    var prevVBO = GLctx.getParameter(34964);
-    ringbuffer[nextFreeBufferIndex] = GLctx.createBuffer();
-    GLctx.bindBuffer(34962, ringbuffer[nextFreeBufferIndex]);
-    GLctx.bufferData(34962, 1 << idx, 35048);
-    GLctx.bindBuffer(34962, prevVBO);
-    return ringbuffer[nextFreeBufferIndex];
-  },
-  getTempIndexBuffer: sizeBytes => {
-    var idx = GL.log2ceilLookup(sizeBytes);
-    var ibo = GL.currentContext.tempIndexBuffers[idx];
-    if (ibo) {
-      return ibo;
-    }
-    var prevIBO = GLctx.getParameter(34965);
-    GL.currentContext.tempIndexBuffers[idx] = GLctx.createBuffer();
-    GLctx.bindBuffer(34963, GL.currentContext.tempIndexBuffers[idx]);
-    GLctx.bufferData(34963, 1 << idx, 35048);
-    GLctx.bindBuffer(34963, prevIBO);
-    return GL.currentContext.tempIndexBuffers[idx];
-  },
-  newRenderingFrameStarted: () => {
-    if (!GL.currentContext) {
-      return;
-    }
-    var vb = GL.currentContext.tempVertexBuffers1;
-    GL.currentContext.tempVertexBuffers1 = GL.currentContext.tempVertexBuffers2;
-    GL.currentContext.tempVertexBuffers2 = vb;
-    vb = GL.currentContext.tempVertexBufferCounters1;
-    GL.currentContext.tempVertexBufferCounters1 = GL.currentContext.tempVertexBufferCounters2;
-    GL.currentContext.tempVertexBufferCounters2 = vb;
-    var largestIndex = GL.log2ceilLookup(GL.MAX_TEMP_BUFFER_SIZE);
-    for (var i = 0; i <= largestIndex; ++i) {
-      GL.currentContext.tempVertexBufferCounters1[i] = 0;
-    }
-  },
   getSource: (shader, count, string, length) => {
     var source = "";
     for (var i = 0; i < count; ++i) {
@@ -6346,35 +6229,6 @@ var GL = {
       source += UTF8ToString((growMemViews(), HEAPU32)[(((string) + (i * 4)) >> 2)], len);
     }
     return source;
-  },
-  calcBufLength: (size, type, stride, count) => {
-    if (stride > 0) {
-      return count * stride;
-    }
-    var typeSize = GL.byteSizeByType[type - GL.byteSizeByTypeRoot];
-    return size * typeSize * count;
-  },
-  usedTempBuffers: [],
-  preDrawHandleClientVertexAttribBindings: count => {
-    GL.resetBufferBinding = false;
-    // TODO: initial pass to detect ranges we need to upload, might not need
-    // an upload per attrib
-    for (var i = 0; i < GL.currentContext.maxVertexAttribs; ++i) {
-      var cb = GL.currentContext.clientBuffers[i];
-      if (!cb.clientside || !cb.enabled) continue;
-      assert(count || !GLctx.currentElementArrayBufferBinding, "must use array buffers when using element buffer");
-      GL.resetBufferBinding = true;
-      var size = GL.calcBufLength(cb.size, cb.type, cb.stride, count);
-      var buf = GL.getTempVertexBuffer(size);
-      GLctx.bindBuffer(34962, buf);
-      webglBufferSubData(34962, 0, size, cb.ptr);
-      cb.vertexAttribPointerAdaptor.call(GLctx, i, cb.size, cb.type, cb.normalized, cb.stride, 0);
-    }
-  },
-  postDrawHandleClientVertexAttribBindings: () => {
-    if (GL.resetBufferBinding) {
-      GLctx.bindBuffer(34962, GL.buffers[GLctx.currentArrayBufferBinding]);
-    }
   },
   createContext: (/** @type {HTMLCanvasElement} */ canvas, webGLContextAttributes) => {
     // BUG: Workaround Safari WebGL issue: After successfully acquiring WebGL
@@ -6418,21 +6272,6 @@ var GL = {
     if (typeof webGLContextAttributes.enableExtensionsByDefault == "undefined" || webGLContextAttributes.enableExtensionsByDefault) {
       GL.initExtensions(context);
     }
-    context.maxVertexAttribs = context.GLctx.getParameter(34921);
-    context.clientBuffers = [];
-    for (var i = 0; i < context.maxVertexAttribs; i++) {
-      context.clientBuffers[i] = {
-        enabled: false,
-        clientside: false,
-        size: 0,
-        type: 0,
-        normalized: 0,
-        stride: 0,
-        ptr: 0,
-        vertexAttribPointerAdaptor: null
-      };
-    }
-    GL.generateTempBuffers(false, context);
     return handle;
   },
   makeContextCurrent: contextHandle => {
@@ -6521,19 +6360,6 @@ var _emscripten_glBindAttribLocation = (program, index, name) => {
 };
 
 var _emscripten_glBindBuffer = (target, buffer) => {
-  // Calling glBindBuffer with an unknown buffer will implicitly create a
-  // new one.  Here we bypass `GL.counter` and directly using the ID passed
-  // in.
-  if (buffer && !GL.buffers[buffer]) {
-    var b = GLctx.createBuffer();
-    b.name = buffer;
-    GL.buffers[buffer] = b;
-  }
-  if (target == 34962) {
-    GLctx.currentArrayBufferBinding = buffer;
-  } else if (target == 34963) {
-    GLctx.currentElementArrayBufferBinding = buffer;
-  }
   if (target == 35051) {
     // In WebGL 2 glReadPixels entry point, we need to use a different WebGL 2
     // API function call when a buffer is bound to
@@ -6582,8 +6408,6 @@ var _emscripten_glBindTransformFeedback = (target, id) => {
 
 var _emscripten_glBindVertexArray = vao => {
   GLctx.bindVertexArray(GL.vaos[vao]);
-  var ibo = GLctx.getParameter(34965);
-  GLctx.currentElementArrayBufferBinding = ibo ? (ibo.name | 0) : 0;
 };
 
 var _glBindVertexArray = _emscripten_glBindVertexArray;
@@ -6613,6 +6437,13 @@ var _emscripten_glBufferData = (target, size, data, usage) => {
     } else {
       GLctx.bufferData(target, size, usage);
     }
+    return;
+  }
+};
+
+var webglBufferSubData = (target, offset, size, data, src = (growMemViews(), HEAPU8)) => {
+  if (true) {
+    size && GLctx.bufferSubData(target, offset, src, data, size);
     return;
   }
 };
@@ -6752,8 +6583,6 @@ var _emscripten_glDeleteBuffers = (n, buffers) => {
     GLctx.deleteBuffer(buffer);
     buffer.name = 0;
     GL.buffers[id] = null;
-    if (id == GLctx.currentArrayBufferBinding) GLctx.currentArrayBufferBinding = 0;
-    if (id == GLctx.currentElementArrayBufferBinding) GLctx.currentElementArrayBufferBinding = 0;
     if (id == GLctx.currentPixelPackBufferBinding) GLctx.currentPixelPackBufferBinding = 0;
     if (id == GLctx.currentPixelUnpackBufferBinding) GLctx.currentPixelUnpackBufferBinding = 0;
   }
@@ -6908,16 +6737,11 @@ var _emscripten_glDetachShader = (program, shader) => {
 var _emscripten_glDisable = x0 => GLctx.disable(x0);
 
 var _emscripten_glDisableVertexAttribArray = index => {
-  var cb = GL.currentContext.clientBuffers[index];
-  cb.enabled = false;
   GLctx.disableVertexAttribArray(index);
 };
 
 var _emscripten_glDrawArrays = (mode, first, count) => {
-  // bind any client-side buffers
-  GL.preDrawHandleClientVertexAttribBindings(first + count);
   GLctx.drawArrays(mode, first, count);
-  GL.postDrawHandleClientVertexAttribBindings();
 };
 
 var _emscripten_glDrawArraysInstanced = (mode, first, count, primcount) => {
@@ -6951,51 +6775,7 @@ var _emscripten_glDrawBuffersEXT = _glDrawBuffers;
 var _emscripten_glDrawBuffersWEBGL = _glDrawBuffers;
 
 var _emscripten_glDrawElements = (mode, count, type, indices) => {
-  var buf;
-  var vertexes = 0;
-  if (!GLctx.currentElementArrayBufferBinding) {
-    var size = GL.calcBufLength(1, type, 0, count);
-    buf = GL.getTempIndexBuffer(size);
-    GLctx.bindBuffer(34963, buf);
-    webglBufferSubData(34963, 0, size, indices);
-    // Calculating vertex count if shader's attribute data is on client side
-    if (count > 0) {
-      for (var i = 0; i < GL.currentContext.maxVertexAttribs; ++i) {
-        var cb = GL.currentContext.clientBuffers[i];
-        if (cb.clientside && cb.enabled) {
-          let arrayClass;
-          switch (type) {
-           case 5121:
-            arrayClass = Uint8Array;
-            break;
-
-           case 5123:
-            arrayClass = Uint16Array;
-            break;
-
-           case 5125:
-            arrayClass = Uint32Array;
-            break;
-
-           default:
-            GL.recordError(1282);
-            return;
-          }
-          vertexes = new arrayClass((growMemViews(), HEAPU8).buffer, indices, count).reduce((max, current) => Math.max(max, current)) + 1;
-          break;
-        }
-      }
-    }
-    // the index is now 0
-    indices = 0;
-  }
-  // bind any client-side buffers
-  GL.preDrawHandleClientVertexAttribBindings(vertexes);
   GLctx.drawElements(mode, count, type, indices);
-  GL.postDrawHandleClientVertexAttribBindings(count);
-  if (!GLctx.currentElementArrayBufferBinding) {
-    GLctx.bindBuffer(34963, null);
-  }
 };
 
 var _emscripten_glDrawElementsInstanced = (mode, count, type, indices, primcount) => {
@@ -7025,8 +6805,6 @@ var _emscripten_glDrawRangeElements = (mode, start, end, count, type, indices) =
 var _emscripten_glEnable = x0 => GLctx.enable(x0);
 
 var _emscripten_glEnableVertexAttribArray = index => {
-  var cb = GL.currentContext.clientBuffers[index];
-  cb.enabled = true;
   GLctx.enableVertexAttribArray(index);
 };
 
@@ -7052,96 +6830,6 @@ var _emscripten_glFenceSync = (condition, flags) => {
 var _emscripten_glFinish = () => GLctx.finish();
 
 var _emscripten_glFlush = () => GLctx.flush();
-
-var emscriptenWebGLGetBufferBinding = target => {
-  switch (target) {
-   case 34962:
-    target = 34964;
-    break;
-
-   case 34963:
-    target = 34965;
-    break;
-
-   case 35051:
-    target = 35053;
-    break;
-
-   case 35052:
-    target = 35055;
-    break;
-
-   case 35982:
-    target = 35983;
-    break;
-
-   case 36662:
-    target = 36662;
-    break;
-
-   case 36663:
-    target = 36663;
-    break;
-
-   case 35345:
-    target = 35368;
-    break;
-  }
-  var buffer = GLctx.getParameter(target);
-  if (buffer) return buffer.name | 0; else return 0;
-};
-
-var emscriptenWebGLValidateMapBufferTarget = target => {
-  switch (target) {
-   case 34962:
-   // GL_ARRAY_BUFFER
-    case 34963:
-   // GL_ELEMENT_ARRAY_BUFFER
-    case 36662:
-   // GL_COPY_READ_BUFFER
-    case 36663:
-   // GL_COPY_WRITE_BUFFER
-    case 35051:
-   // GL_PIXEL_PACK_BUFFER
-    case 35052:
-   // GL_PIXEL_UNPACK_BUFFER
-    case 35882:
-   // GL_TEXTURE_BUFFER
-    case 35982:
-   // GL_TRANSFORM_FEEDBACK_BUFFER
-    case 35345:
-    // GL_UNIFORM_BUFFER
-    return true;
-
-   default:
-    return false;
-  }
-};
-
-var _emscripten_glFlushMappedBufferRange = (target, offset, length) => {
-  if (!emscriptenWebGLValidateMapBufferTarget(target)) {
-    GL.recordError(1280);
-    err("GL_INVALID_ENUM in glFlushMappedBufferRange");
-    return;
-  }
-  var mapping = GL.mappedBuffers[emscriptenWebGLGetBufferBinding(target)];
-  if (!mapping) {
-    GL.recordError(1282);
-    err("buffer was never mapped in glFlushMappedBufferRange");
-    return;
-  }
-  if (!(mapping.access & 16)) {
-    GL.recordError(1282);
-    err("buffer was not mapped with GL_MAP_FLUSH_EXPLICIT_BIT in glFlushMappedBufferRange");
-    return;
-  }
-  if (offset < 0 || length < 0 || offset + length > mapping.length) {
-    GL.recordError(1281);
-    err("invalid range in glFlushMappedBufferRange");
-    return;
-  }
-  webglBufferSubData(target, mapping.offset, length, mapping.mem + offset);
-};
 
 var _emscripten_glFramebufferRenderbuffer = (target, attachment, renderbuffertarget, renderbuffer) => {
   GLctx.framebufferRenderbuffer(target, attachment, renderbuffertarget, GL.renderbuffers[renderbuffer]);
@@ -7541,20 +7229,6 @@ var _emscripten_glGetBufferParameteriv = (target, value, data) => {
     return;
   }
   (growMemViews(), HEAP32)[((data) >> 2)] = GLctx.getBufferParameter(target, value);
-};
-
-var _emscripten_glGetBufferPointerv = (target, pname, params) => {
-  if (pname == 35005) {
-    var ptr = 0;
-    var mappedBuffer = GL.mappedBuffers[emscriptenWebGLGetBufferBinding(target)];
-    if (mappedBuffer) {
-      ptr = mappedBuffer.mem;
-    }
-    (growMemViews(), HEAP32)[((params) >> 2)] = ptr;
-  } else {
-    GL.recordError(1280);
-    err("GL_INVALID_ENUM in glGetBufferPointerv");
-  }
 };
 
 var _emscripten_glGetError = () => {
@@ -8226,9 +7900,6 @@ var _emscripten_glGetUniformuiv = (program, location, params) => emscriptenWebGL
     GL.recordError(1281);
     return;
   }
-  if (GL.currentContext.clientBuffers[index].enabled) {
-    err("glGetVertexAttrib*v on client-side array: not supported, bad data returned");
-  }
   var data = GLctx.getVertexAttrib(index, pname);
   if (pname == 34975) {
     (growMemViews(), HEAP32)[((params) >> 2)] = data && data["name"];
@@ -8282,9 +7953,6 @@ var _emscripten_glGetVertexAttribPointerv = (index, pname, pointer) => {
     // null, issue a GL error to notify user about it.
     GL.recordError(1281);
     return;
-  }
-  if (GL.currentContext.clientBuffers[index].enabled) {
-    err("glGetVertexAttribPointer on client-side array: not supported, bad data returned");
   }
   (growMemViews(), HEAP32)[((pointer) >> 2)] = GLctx.getVertexAttribOffset(index, pname);
 };
@@ -8400,34 +8068,6 @@ var _emscripten_glLinkProgram = program => {
   program.uniformLocsById = 0;
   // Mark as null-like so that glGetUniformLocation() knows to populate this again.
   program.uniformSizeAndIdsByName = {};
-};
-
-var _emscripten_glMapBufferRange = (target, offset, length, access) => {
-  if ((access & (1 | 32)) != 0) {
-    err("glMapBufferRange access does not support MAP_READ or MAP_UNSYNCHRONIZED");
-    return 0;
-  }
-  if ((access & 2) == 0) {
-    err("glMapBufferRange access must include MAP_WRITE");
-    return 0;
-  }
-  if ((access & (4 | 8)) == 0) {
-    err("glMapBufferRange access must include INVALIDATE_BUFFER or INVALIDATE_RANGE");
-    return 0;
-  }
-  if (!emscriptenWebGLValidateMapBufferTarget(target)) {
-    GL.recordError(1280);
-    err("GL_INVALID_ENUM in glMapBufferRange");
-    return 0;
-  }
-  var mem = _malloc(length), binding = emscriptenWebGLGetBufferBinding(target);
-  if (!mem) return 0;
-  binding = GL.mappedBuffers[binding] ??= {};
-  binding.offset = offset;
-  binding.length = length;
-  binding.mem = mem;
-  binding.access = access;
-  return mem;
 };
 
 var _emscripten_glPauseTransformFeedback = () => GLctx.pauseTransformFeedback();
@@ -8819,27 +8459,6 @@ var _emscripten_glUniformMatrix4x3fv = (location, count, transpose, value) => {
   HEAPF32), ((value) >> 2), count * 12);
 };
 
-var _emscripten_glUnmapBuffer = target => {
-  if (!emscriptenWebGLValidateMapBufferTarget(target)) {
-    GL.recordError(1280);
-    err("GL_INVALID_ENUM in glUnmapBuffer");
-    return 0;
-  }
-  var buffer = emscriptenWebGLGetBufferBinding(target);
-  var mapping = GL.mappedBuffers[buffer];
-  if (!mapping || !mapping.mem) {
-    GL.recordError(1282);
-    err("buffer was never mapped in glUnmapBuffer");
-    return 0;
-  }
-  if (!(mapping.access & 16)) {
-    /* GL_MAP_FLUSH_EXPLICIT_BIT */ webglBufferSubData(target, mapping.offset, mapping.length, mapping.mem);
-  }
-  _free(mapping.mem);
-  mapping.mem = 0;
-  return 1;
-};
-
 var _emscripten_glUseProgram = program => {
   program = GL.programs[program];
   GLctx.useProgram(program);
@@ -8908,38 +8527,10 @@ var _emscripten_glVertexAttribI4uiv = (index, v) => {
 };
 
 var _emscripten_glVertexAttribIPointer = (index, size, type, stride, ptr) => {
-  var cb = GL.currentContext.clientBuffers[index];
-  if (!GLctx.currentArrayBufferBinding) {
-    cb.size = size;
-    cb.type = type;
-    cb.normalized = false;
-    cb.stride = stride;
-    cb.ptr = ptr;
-    cb.clientside = true;
-    cb.vertexAttribPointerAdaptor = /** @this {WebGLRenderingContext} */ function(index, size, type, normalized, stride, ptr) {
-      this.vertexAttribIPointer(index, size, type, stride, ptr);
-    };
-    return;
-  }
-  cb.clientside = false;
   GLctx.vertexAttribIPointer(index, size, type, stride, ptr);
 };
 
 var _emscripten_glVertexAttribPointer = (index, size, type, normalized, stride, ptr) => {
-  var cb = GL.currentContext.clientBuffers[index];
-  if (!GLctx.currentArrayBufferBinding) {
-    cb.size = size;
-    cb.type = type;
-    cb.normalized = normalized;
-    cb.stride = stride;
-    cb.ptr = ptr;
-    cb.clientside = true;
-    cb.vertexAttribPointerAdaptor = /** @this {WebGLRenderingContext} */ function(index, size, type, normalized, stride, ptr) {
-      this.vertexAttribPointer(index, size, type, normalized, stride, ptr);
-    };
-    return;
-  }
-  cb.clientside = false;
   GLctx.vertexAttribPointer(index, size, type, !!normalized, stride, ptr);
 };
 
@@ -9926,10 +9517,6 @@ Module["resumeMainLoop"] = MainLoop.resume;
 
 MainLoop.init();
 
-// Signal GL rendering layer that processing of a new frame is about to
-// start. This helps it optimize VBO double-buffering and reduce GPU stalls.
-registerPreMainLoop(() => GL.newRenderingFrameStarted());
-
 for (let i = 0; i < 32; ++i) tempFixedLengthArray.push(new Array(i));
 
 // End JS library code
@@ -9989,11 +9576,11 @@ Module["FS_createDataFile"] = FS_createDataFile;
 
 Module["FS_createLazyFile"] = FS_createLazyFile;
 
-var missingLibrarySymbols = [ "writeI53ToI64Clamped", "writeI53ToI64Signaling", "writeI53ToU64Clamped", "writeI53ToU64Signaling", "convertI32PairToI53", "convertI32PairToI53Checked", "convertU32PairToI53", "getTempRet0", "setTempRet0", "createNamedFunction", "zeroMemory", "withStackSave", "inetPton4", "inetNtop4", "inetPton6", "inetNtop6", "readSockaddr", "writeSockaddr", "getDynCaller", "asmjsMangle", "HandleAllocator", "addOnInit", "addOnPostCtor", "addOnPreMain", "STACK_SIZE", "STACK_ALIGN", "POINTER_SIZE", "ASSERTIONS", "ccall", "cwrap", "convertJsFunctionToWasm", "getEmptyTableSlot", "updateTableMap", "getFunctionAddress", "addFunction", "removeFunction", "getValue", "intArrayToString", "AsciiToString", "stringToAscii", "UTF16ToString", "stringToUTF16", "lengthBytesUTF16", "UTF32ToString", "stringToUTF32", "lengthBytesUTF32", "registerMouseEventCallback", "fillDeviceOrientationEventData", "registerDeviceOrientationEventCallback", "fillDeviceMotionEventData", "registerDeviceMotionEventCallback", "hideEverythingExceptGivenElement", "restoreHiddenElements", "softFullscreenResizeWebGLRenderTarget", "registerPointerlockErrorEventCallback", "registerTouchEventCallback", "fillBatteryEventData", "registerBatteryEventCallback", "jsStackTrace", "getCallstack", "convertPCtoSourceLocation", "wasiRightsToMuslOFlags", "wasiOFlagsToMuslOFlags", "setImmediateWrapped", "safeRequestAnimationFrame", "clearImmediateWrapped", "registerPostMainLoop", "getPromise", "makePromise", "addPromise", "idsToPromises", "makePromiseCallback", "Browser_asyncPrepareDataCounter", "isLeapYear", "ydayFromDate", "arraySum", "addDays", "getSocketFromFD", "getSocketAddress", "FS_mkdirTree", "_setNetworkCallback", "writeGLArray", "emscripten_webgl_destroy_context_before_on_calling_thread", "registerWebGlEventCallback", "runAndAbortIfError", "writeStringToMemory", "writeAsciiToMemory", "allocateUTF8", "allocateUTF8OnStack", "stackTrace", "getNativeTypeSize" ];
+var missingLibrarySymbols = [ "writeI53ToI64Clamped", "writeI53ToI64Signaling", "writeI53ToU64Clamped", "writeI53ToU64Signaling", "convertI32PairToI53", "convertI32PairToI53Checked", "convertU32PairToI53", "getTempRet0", "setTempRet0", "createNamedFunction", "zeroMemory", "withStackSave", "inetPton4", "inetNtop4", "inetPton6", "inetNtop6", "readSockaddr", "writeSockaddr", "getDynCaller", "asmjsMangle", "HandleAllocator", "addOnInit", "addOnPostCtor", "addOnPreMain", "STACK_SIZE", "STACK_ALIGN", "POINTER_SIZE", "ASSERTIONS", "ccall", "cwrap", "convertJsFunctionToWasm", "getEmptyTableSlot", "updateTableMap", "getFunctionAddress", "addFunction", "removeFunction", "getValue", "intArrayToString", "AsciiToString", "stringToAscii", "UTF16ToString", "stringToUTF16", "lengthBytesUTF16", "UTF32ToString", "stringToUTF32", "lengthBytesUTF32", "registerMouseEventCallback", "fillDeviceOrientationEventData", "registerDeviceOrientationEventCallback", "fillDeviceMotionEventData", "registerDeviceMotionEventCallback", "hideEverythingExceptGivenElement", "restoreHiddenElements", "softFullscreenResizeWebGLRenderTarget", "registerPointerlockErrorEventCallback", "registerTouchEventCallback", "fillBatteryEventData", "registerBatteryEventCallback", "jsStackTrace", "getCallstack", "convertPCtoSourceLocation", "wasiRightsToMuslOFlags", "wasiOFlagsToMuslOFlags", "setImmediateWrapped", "safeRequestAnimationFrame", "clearImmediateWrapped", "registerPostMainLoop", "registerPreMainLoop", "getPromise", "makePromise", "addPromise", "idsToPromises", "makePromiseCallback", "Browser_asyncPrepareDataCounter", "isLeapYear", "ydayFromDate", "arraySum", "addDays", "getSocketFromFD", "getSocketAddress", "FS_mkdirTree", "_setNetworkCallback", "writeGLArray", "emscripten_webgl_destroy_context_before_on_calling_thread", "registerWebGlEventCallback", "runAndAbortIfError", "writeStringToMemory", "writeAsciiToMemory", "allocateUTF8", "allocateUTF8OnStack", "stackTrace", "getNativeTypeSize" ];
 
 missingLibrarySymbols.forEach(missingLibrarySymbol);
 
-var unexportedSymbols = [ "run", "out", "err", "callMain", "abort", "wasmExports", "writeStackCookie", "checkStackCookie", "writeI53ToI64", "readI53FromI64", "readI53FromU64", "INT53_MAX", "INT53_MIN", "bigintToI53Checked", "HEAP8", "HEAPU8", "HEAP16", "HEAPU16", "HEAP32", "HEAPU32", "HEAPF32", "HEAPF64", "HEAP64", "HEAPU64", "stackSave", "stackRestore", "stackAlloc", "ptrToString", "exitJS", "getHeapMax", "growMemory", "ENV", "ERRNO_CODES", "strError", "DNS", "Protocols", "Sockets", "timers", "warnOnce", "readEmAsmArgsArray", "readEmAsmArgs", "runEmAsmFunction", "runMainThreadEmAsm", "jstoi_q", "getExecutableName", "autoResumeAudioContext", "dynCall", "handleException", "keepRuntimeAlive", "runtimeKeepalivePush", "runtimeKeepalivePop", "callUserCallback", "maybeExit", "asyncLoad", "alignMemory", "mmapAlloc", "wasmTable", "wasmMemory", "getUniqueRunDependency", "noExitRuntime", "addOnPreRun", "addOnExit", "addOnPostRun", "freeTableIndexes", "functionsInTableMap", "setValue", "PATH", "PATH_FS", "UTF8Decoder", "UTF8ArrayToString", "UTF8ToString", "stringToUTF8Array", "stringToUTF8", "lengthBytesUTF8", "intArrayFromString", "UTF16Decoder", "stringToNewUTF8", "stringToUTF8OnStack", "writeArrayToMemory", "JSEvents", "registerKeyEventCallback", "specialHTMLTargets", "maybeCStringToJsString", "findEventTarget", "findCanvasEventTarget", "getBoundingClientRect", "fillMouseEventData", "registerWheelEventCallback", "registerUiEventCallback", "registerFocusEventCallback", "screenOrientation", "fillOrientationChangeEventData", "registerOrientationChangeEventCallback", "fillFullscreenChangeEventData", "registerFullscreenChangeEventCallback", "callCanvasResizedCallback", "JSEvents_requestFullscreen", "JSEvents_resizeCanvasForFullscreen", "registerRestoreOldStyle", "setLetterbox", "currentFullscreenStrategy", "restoreOldWindowedStyle", "doRequestFullscreen", "fillPointerlockChangeEventData", "registerPointerlockChangeEventCallback", "requestPointerLock", "fillVisibilityChangeEventData", "registerVisibilityChangeEventCallback", "fillGamepadEventData", "registerGamepadEventCallback", "registerBeforeUnloadEventCallback", "setCanvasElementSizeCallingThread", "setCanvasElementSizeMainThread", "setCanvasElementSize", "getCanvasSizeCallingThread", "getCanvasSizeMainThread", "getCanvasElementSize", "UNWIND_CACHE", "ExitStatus", "getEnvStrings", "checkWasiClock", "doReadv", "doWritev", "initRandomFill", "randomFill", "safeSetTimeout", "emSetImmediate", "emClearImmediate_deps", "emClearImmediate", "registerPreMainLoop", "promiseMap", "Browser", "requestFullscreen", "setCanvasSize", "getUserMedia", "createContext", "getPreloadedImageData__data", "wget", "MONTH_DAYS_REGULAR", "MONTH_DAYS_LEAP", "MONTH_DAYS_REGULAR_CUMULATIVE", "MONTH_DAYS_LEAP_CUMULATIVE", "SYSCALLS", "preloadPlugins", "FS_createPreloadedFile", "FS_modeStringToFlags", "FS_getMode", "FS_fileDataToTypedArray", "FS_stdin_getChar_buffer", "FS_stdin_getChar", "FS_readFile", "FS", "FS_root", "FS_mounts", "FS_devices", "FS_streams", "FS_nextInode", "FS_nameTable", "FS_currentPath", "FS_initialized", "FS_ignorePermissions", "FS_filesystems", "FS_syncFSRequests", "FS_lookupPath", "FS_getPath", "FS_hashName", "FS_hashAddNode", "FS_hashRemoveNode", "FS_lookupNode", "FS_createNode", "FS_destroyNode", "FS_isRoot", "FS_isMountpoint", "FS_isFile", "FS_isDir", "FS_isLink", "FS_isChrdev", "FS_isBlkdev", "FS_isFIFO", "FS_isSocket", "FS_flagsToPermissionString", "FS_nodePermissions", "FS_mayLookup", "FS_mayCreate", "FS_mayDelete", "FS_mayOpen", "FS_checkOpExists", "FS_nextfd", "FS_getStreamChecked", "FS_getStream", "FS_createStream", "FS_closeStream", "FS_dupStream", "FS_doSetAttr", "FS_chrdev_stream_ops", "FS_major", "FS_minor", "FS_makedev", "FS_registerDevice", "FS_getDevice", "FS_getMounts", "FS_syncfs", "FS_mount", "FS_unmount", "FS_lookup", "FS_mknod", "FS_statfs", "FS_statfsStream", "FS_statfsNode", "FS_create", "FS_mkdir", "FS_mkdev", "FS_symlink", "FS_link", "FS_rename", "FS_rmdir", "FS_readdir", "FS_readlink", "FS_stat", "FS_fstat", "FS_lstat", "FS_doChmod", "FS_chmod", "FS_lchmod", "FS_fchmod", "FS_doChown", "FS_chown", "FS_lchown", "FS_fchown", "FS_doTruncate", "FS_truncate", "FS_ftruncate", "FS_utime", "FS_open", "FS_close", "FS_isClosed", "FS_llseek", "FS_read", "FS_write", "FS_mmap", "FS_msync", "FS_ioctl", "FS_writeFile", "FS_cwd", "FS_chdir", "FS_createDefaultDirectories", "FS_createDefaultDevices", "FS_createSpecialDirectories", "FS_createStandardStreams", "FS_staticInit", "FS_init", "FS_quit", "FS_findObject", "FS_analyzePath", "FS_createFile", "FS_forceLoadFile", "MEMFS", "TTY", "PIPEFS", "SOCKFS", "tempFixedLengthArray", "miniTempWebGLFloatBuffers", "miniTempWebGLIntBuffers", "heapObjectForWebGLType", "toTypedArrayIndex", "webgl_enable_WEBGL_multi_draw", "webgl_enable_EXT_polygon_offset_clamp", "webgl_enable_EXT_clip_control", "webgl_enable_WEBGL_polygon_mode", "GL", "emscriptenWebGLGet", "computeUnpackAlignedImageSize", "colorChannelsInGlTextureFormat", "emscriptenWebGLGetTexPixelData", "emscriptenWebGLGetUniform", "webglGetProgramUniformLocation", "webglGetUniformLocation", "webglPrepareUniformLocationsBeforeFirstUse", "webglGetLeftBracePos", "emscriptenWebGLGetVertexAttrib", "__glGetActiveAttribOrUniform", "emscriptenWebGLGetBufferBinding", "emscriptenWebGLValidateMapBufferTarget", "AL", "GLUT", "EGL", "GLEW", "IDBStore", "SDL", "SDL_gfx", "waitAsyncPolyfilled", "emscriptenWebGLGetIndexed", "webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance", "webgl_enable_WEBGL_multi_draw_instanced_base_vertex_base_instance", "print", "printErr", "jstoi_s", "PThread", "terminateWorker", "cleanupThread", "registerTLSInit", "spawnThread", "exitOnMainThread", "proxyToMainThread", "proxiedJSCallArgs", "invokeEntryPoint", "checkMailbox" ];
+var unexportedSymbols = [ "run", "out", "err", "callMain", "abort", "wasmExports", "writeStackCookie", "checkStackCookie", "writeI53ToI64", "readI53FromI64", "readI53FromU64", "INT53_MAX", "INT53_MIN", "bigintToI53Checked", "HEAP8", "HEAPU8", "HEAP16", "HEAPU16", "HEAP32", "HEAPU32", "HEAPF32", "HEAPF64", "HEAP64", "HEAPU64", "stackSave", "stackRestore", "stackAlloc", "ptrToString", "exitJS", "getHeapMax", "growMemory", "ENV", "ERRNO_CODES", "strError", "DNS", "Protocols", "Sockets", "timers", "warnOnce", "readEmAsmArgsArray", "readEmAsmArgs", "runEmAsmFunction", "runMainThreadEmAsm", "jstoi_q", "getExecutableName", "autoResumeAudioContext", "dynCall", "handleException", "keepRuntimeAlive", "runtimeKeepalivePush", "runtimeKeepalivePop", "callUserCallback", "maybeExit", "asyncLoad", "alignMemory", "mmapAlloc", "wasmTable", "wasmMemory", "getUniqueRunDependency", "noExitRuntime", "addOnPreRun", "addOnExit", "addOnPostRun", "freeTableIndexes", "functionsInTableMap", "setValue", "PATH", "PATH_FS", "UTF8Decoder", "UTF8ArrayToString", "UTF8ToString", "stringToUTF8Array", "stringToUTF8", "lengthBytesUTF8", "intArrayFromString", "UTF16Decoder", "stringToNewUTF8", "stringToUTF8OnStack", "writeArrayToMemory", "JSEvents", "registerKeyEventCallback", "specialHTMLTargets", "maybeCStringToJsString", "findEventTarget", "findCanvasEventTarget", "getBoundingClientRect", "fillMouseEventData", "registerWheelEventCallback", "registerUiEventCallback", "registerFocusEventCallback", "screenOrientation", "fillOrientationChangeEventData", "registerOrientationChangeEventCallback", "fillFullscreenChangeEventData", "registerFullscreenChangeEventCallback", "callCanvasResizedCallback", "JSEvents_requestFullscreen", "JSEvents_resizeCanvasForFullscreen", "registerRestoreOldStyle", "setLetterbox", "currentFullscreenStrategy", "restoreOldWindowedStyle", "doRequestFullscreen", "fillPointerlockChangeEventData", "registerPointerlockChangeEventCallback", "requestPointerLock", "fillVisibilityChangeEventData", "registerVisibilityChangeEventCallback", "fillGamepadEventData", "registerGamepadEventCallback", "registerBeforeUnloadEventCallback", "setCanvasElementSizeCallingThread", "setCanvasElementSizeMainThread", "setCanvasElementSize", "getCanvasSizeCallingThread", "getCanvasSizeMainThread", "getCanvasElementSize", "UNWIND_CACHE", "ExitStatus", "getEnvStrings", "checkWasiClock", "doReadv", "doWritev", "initRandomFill", "randomFill", "safeSetTimeout", "emSetImmediate", "emClearImmediate_deps", "emClearImmediate", "promiseMap", "Browser", "requestFullscreen", "setCanvasSize", "getUserMedia", "createContext", "getPreloadedImageData__data", "wget", "MONTH_DAYS_REGULAR", "MONTH_DAYS_LEAP", "MONTH_DAYS_REGULAR_CUMULATIVE", "MONTH_DAYS_LEAP_CUMULATIVE", "SYSCALLS", "preloadPlugins", "FS_createPreloadedFile", "FS_modeStringToFlags", "FS_getMode", "FS_fileDataToTypedArray", "FS_stdin_getChar_buffer", "FS_stdin_getChar", "FS_readFile", "FS", "FS_root", "FS_mounts", "FS_devices", "FS_streams", "FS_nextInode", "FS_nameTable", "FS_currentPath", "FS_initialized", "FS_ignorePermissions", "FS_filesystems", "FS_syncFSRequests", "FS_lookupPath", "FS_getPath", "FS_hashName", "FS_hashAddNode", "FS_hashRemoveNode", "FS_lookupNode", "FS_createNode", "FS_destroyNode", "FS_isRoot", "FS_isMountpoint", "FS_isFile", "FS_isDir", "FS_isLink", "FS_isChrdev", "FS_isBlkdev", "FS_isFIFO", "FS_isSocket", "FS_flagsToPermissionString", "FS_nodePermissions", "FS_mayLookup", "FS_mayCreate", "FS_mayDelete", "FS_mayOpen", "FS_checkOpExists", "FS_nextfd", "FS_getStreamChecked", "FS_getStream", "FS_createStream", "FS_closeStream", "FS_dupStream", "FS_doSetAttr", "FS_chrdev_stream_ops", "FS_major", "FS_minor", "FS_makedev", "FS_registerDevice", "FS_getDevice", "FS_getMounts", "FS_syncfs", "FS_mount", "FS_unmount", "FS_lookup", "FS_mknod", "FS_statfs", "FS_statfsStream", "FS_statfsNode", "FS_create", "FS_mkdir", "FS_mkdev", "FS_symlink", "FS_link", "FS_rename", "FS_rmdir", "FS_readdir", "FS_readlink", "FS_stat", "FS_fstat", "FS_lstat", "FS_doChmod", "FS_chmod", "FS_lchmod", "FS_fchmod", "FS_doChown", "FS_chown", "FS_lchown", "FS_fchown", "FS_doTruncate", "FS_truncate", "FS_ftruncate", "FS_utime", "FS_open", "FS_close", "FS_isClosed", "FS_llseek", "FS_read", "FS_write", "FS_mmap", "FS_msync", "FS_ioctl", "FS_writeFile", "FS_cwd", "FS_chdir", "FS_createDefaultDirectories", "FS_createDefaultDevices", "FS_createSpecialDirectories", "FS_createStandardStreams", "FS_staticInit", "FS_init", "FS_quit", "FS_findObject", "FS_analyzePath", "FS_createFile", "FS_forceLoadFile", "MEMFS", "TTY", "PIPEFS", "SOCKFS", "tempFixedLengthArray", "miniTempWebGLFloatBuffers", "miniTempWebGLIntBuffers", "heapObjectForWebGLType", "toTypedArrayIndex", "webgl_enable_WEBGL_multi_draw", "webgl_enable_EXT_polygon_offset_clamp", "webgl_enable_EXT_clip_control", "webgl_enable_WEBGL_polygon_mode", "GL", "emscriptenWebGLGet", "computeUnpackAlignedImageSize", "colorChannelsInGlTextureFormat", "emscriptenWebGLGetTexPixelData", "emscriptenWebGLGetUniform", "webglGetProgramUniformLocation", "webglGetUniformLocation", "webglPrepareUniformLocationsBeforeFirstUse", "webglGetLeftBracePos", "emscriptenWebGLGetVertexAttrib", "__glGetActiveAttribOrUniform", "AL", "GLUT", "EGL", "GLEW", "IDBStore", "SDL", "SDL_gfx", "waitAsyncPolyfilled", "emscriptenWebGLGetIndexed", "webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance", "webgl_enable_WEBGL_multi_draw_instanced_base_vertex_base_instance", "print", "printErr", "jstoi_s", "PThread", "terminateWorker", "cleanupThread", "registerTLSInit", "spawnThread", "exitOnMainThread", "proxyToMainThread", "proxiedJSCallArgs", "invokeEntryPoint", "checkMailbox" ];
 
 unexportedSymbols.forEach(unexportedRuntimeSymbol);
 
@@ -10038,7 +9625,7 @@ function checkIncomingModuleAPI() {
 }
 
 var ASM_CONSTS = {
-  18597128: () => {
+  18596920: () => {
     if (typeof (Module["SDL3"]) === "undefined") {
       Module["SDL3"] = {};
     }
@@ -10054,7 +9641,7 @@ var ASM_CONSTS = {
       };
     }
   },
-  18597442: $0 => {
+  18597234: $0 => {
     var str = UTF8ToString($0) + "\n\n" + "Abort/Retry/Ignore/AlwaysIgnore? [ariA] :";
     var reply = window.prompt(str, "i");
     if (reply === null) {
@@ -10062,11 +9649,11 @@ var ASM_CONSTS = {
     }
     return reply.length === 1 ? reply.charCodeAt(0) : -1;
   },
-  18597657: () => {
+  18597449: () => {
     Module["SDL3"].camera = {};
   },
-  18597689: () => (navigator.mediaDevices === undefined) ? 0 : 1,
-  18597748: ($0, $1, $2, $3, $4) => {
+  18597481: () => (navigator.mediaDevices === undefined) ? 0 : 1,
+  18597540: ($0, $1, $2, $3, $4) => {
     const device = $0;
     const w = $1;
     const h = $2;
@@ -10140,7 +9727,7 @@ var ASM_CONSTS = {
       outcome(device, 0, 0, 0, 0);
     });
   },
-  18600054: () => {
+  18599846: () => {
     const SDL3 = Module["SDL3"];
     if ((typeof (SDL3) === "undefined") || (typeof (SDL3.camera) === "undefined") || (typeof (SDL3.camera.stream) === "undefined")) {
       return;
@@ -10148,7 +9735,7 @@ var ASM_CONSTS = {
     SDL3.camera.stream.getTracks().forEach(track => track.stop());
     SDL3.camera = {};
   },
-  18600305: ($0, $1, $2) => {
+  18600097: ($0, $1, $2) => {
     const w = $0;
     const h = $1;
     const rgba = $2;
@@ -10161,18 +9748,18 @@ var ASM_CONSTS = {
     (growMemViews(), HEAPU8).set(imgrgba, rgba);
     return 1;
   },
-  18600683: () => {
+  18600475: () => {
     if (typeof (Module["SDL3"]) !== "undefined") {
       Module["SDL3"].camera = undefined;
     }
   },
-  18600770: () => {
+  18600562: () => {
     Module["SDL3"].dummy_audio = {};
     Module["SDL3"].dummy_audio.timers = [];
     Module["SDL3"].dummy_audio.timers[0] = undefined;
     Module["SDL3"].dummy_audio.timers[1] = undefined;
   },
-  18600947: ($0, $1, $2, $3, $4) => {
+  18600739: ($0, $1, $2, $3, $4) => {
     var a = Module["SDL3"].dummy_audio;
     if (a.timers[$0] !== undefined) {
       clearInterval(a.timers[$0]);
@@ -10181,14 +9768,14 @@ var ASM_CONSTS = {
       dynCall("vi", $3, [ $4 ]);
     }, ($1 / $2) * 1e3);
   },
-  18601139: $0 => {
+  18600931: $0 => {
     var a = Module["SDL3"].dummy_audio;
     if (a.timers[$0] !== undefined) {
       clearInterval(a.timers[$0]);
     }
     a.timers[$0] = undefined;
   },
-  18601270: () => {
+  18601062: () => {
     if (typeof (AudioContext) !== "undefined") {
       return true;
     } else if (typeof (webkitAudioContext) !== "undefined") {
@@ -10196,7 +9783,7 @@ var ASM_CONSTS = {
     }
     return false;
   },
-  18601417: () => {
+  18601209: () => {
     if ((typeof (navigator.mediaDevices) !== "undefined") && (typeof (navigator.mediaDevices.getUserMedia) !== "undefined")) {
       return true;
     } else if (typeof (navigator.webkitGetUserMedia) !== "undefined") {
@@ -10204,7 +9791,7 @@ var ASM_CONSTS = {
     }
     return false;
   },
-  18601651: () => {
+  18601443: () => {
     var SDL3 = Module["SDL3"];
     if (typeof (SDL3.audio_playback) === "undefined") {
       SDL3.audio_playback = {};
@@ -10226,8 +9813,8 @@ var ASM_CONSTS = {
     }
     return (SDL3.audioContext !== undefined);
   },
-  18602230: () => Module["SDL3"].audioContext.sampleRate,
-  18602281: ($0, $1, $2, $3) => {
+  18602022: () => Module["SDL3"].audioContext.sampleRate,
+  18602073: ($0, $1, $2, $3) => {
     var SDL3 = Module["SDL3"];
     var have_microphone = function(stream) {
       if (SDL3.audio_recording.silenceTimer !== undefined) {
@@ -10269,7 +9856,7 @@ var ASM_CONSTS = {
       }, have_microphone, no_microphone);
     }
   },
-  18604122: ($0, $1, $2, $3) => {
+  18603914: ($0, $1, $2, $3) => {
     var SDL3 = Module["SDL3"];
     SDL3.audio_playback.scriptProcessorNode = SDL3.audioContext["createScriptProcessor"]($1, 0, $0);
     SDL3.audio_playback.scriptProcessorNode["onaudioprocess"] = function(e) {
@@ -10301,7 +9888,7 @@ var ASM_CONSTS = {
       SDL3.audio_playback.silenceTimer = setInterval(silence_callback, ($1 / SDL3.audioContext.sampleRate) * 1e3);
     }
   },
-  18605438: $0 => {
+  18605230: $0 => {
     var SDL3 = Module["SDL3"];
     if ($0) {
       if (SDL3.audio_recording.silenceTimer !== undefined) {
@@ -10335,7 +9922,7 @@ var ASM_CONSTS = {
       SDL3.audioContext = undefined;
     }
   },
-  18606594: ($0, $1) => {
+  18606386: ($0, $1) => {
     var SDL3 = Module["SDL3"];
     var buf = SDL3.CPtrToHeap32Index($0);
     var numChannels = SDL3.audio_playback.currentPlaybackBuffer["numberOfChannels"];
@@ -10349,7 +9936,7 @@ var ASM_CONSTS = {
       }
     }
   },
-  18607127: ($0, $1) => {
+  18606919: ($0, $1) => {
     var SDL3 = Module["SDL3"];
     var numChannels = SDL3.audio_recording.currentRecordingBuffer.numberOfChannels;
     for (var c = 0; c < numChannels; ++c) {
@@ -10368,7 +9955,7 @@ var ASM_CONSTS = {
       }
     }
   },
-  18607754: $0 => {
+  18607546: $0 => {
     let gamepads = navigator["getGamepads"]();
     if (!gamepads) {
       return 0;
@@ -10379,7 +9966,7 @@ var ASM_CONSTS = {
     }
     return 1;
   },
-  18607929: ($0, $1, $2) => {
+  18607721: ($0, $1, $2) => {
     let gamepads = navigator["getGamepads"]();
     if (!gamepads) {
       return 0;
@@ -10396,7 +9983,7 @@ var ASM_CONSTS = {
     });
     return 1;
   },
-  18608265: $0 => {
+  18608057: $0 => {
     var parms = new URLSearchParams(window.location.search);
     for (const [key, value] of parms) {
       if (key.startsWith("SDL_")) {
@@ -10410,7 +9997,7 @@ var ASM_CONSTS = {
       }
     }
   },
-  18608606: ($0, $1, $2, $3) => {
+  18608398: ($0, $1, $2, $3) => {
     var w = $0;
     var h = $1;
     var pixels = $2;
@@ -10441,7 +10028,7 @@ var ASM_CONSTS = {
     SDL3.ctx.putImageData(SDL3.image, 0, 0);
     return true;
   },
-  18609355: () => {
+  18609147: () => {
     var SDL3 = Module["SDL3"];
     SDL3["mouse_x"] = 0;
     SDL3["mouse_y"] = 0;
@@ -10467,7 +10054,7 @@ var ASM_CONSTS = {
       }
     });
   },
-  18610043: ($0, $1, $2, $3, $4) => {
+  18609835: ($0, $1, $2, $3, $4) => {
     var w = $0;
     var h = $1;
     var hot_x = $2;
@@ -10488,20 +10075,20 @@ var ASM_CONSTS = {
     stringToUTF8(url, urlBuf, url.length + 1);
     return urlBuf;
   },
-  18610701: $0 => {
+  18610493: $0 => {
     if (Module["canvas"]) {
       Module["canvas"].style["cursor"] = UTF8ToString($0);
     }
   },
-  18610784: () => {
+  18610576: () => {
     if (Module["canvas"]) {
       Module["canvas"].style["cursor"] = "none";
     }
   },
-  18610853: () => Module["SDL3"]["mouse_x"],
-  18610891: () => Module["SDL3"]["mouse_y"],
-  18610929: $0 => Module["SDL3"]["mouse_buttons"][$0],
-  18610977: $0 => {
+  18610645: () => Module["SDL3"]["mouse_x"],
+  18610683: () => Module["SDL3"]["mouse_y"],
+  18610721: $0 => Module["SDL3"]["mouse_buttons"][$0],
+  18610769: $0 => {
     var data = $0;
     document.sdlEventHandlerLockKeysCheck = function(event) {
       if ((event.key != "CapsLock") && (event.key != "NumLock") && (event.key != "ScrollLock")) {
@@ -10510,10 +10097,10 @@ var ASM_CONSTS = {
     };
     document.addEventListener("keydown", document.sdlEventHandlerLockKeysCheck);
   },
-  18611404: () => {
+  18611196: () => {
     document.removeEventListener("keydown", document.sdlEventHandlerLockKeysCheck);
   },
-  18611488: $0 => {
+  18611280: $0 => {
     var target = document;
     if (target) {
       target.sdlEventHandlerMouseButtonUpGlobal = function(event) {
@@ -10527,7 +10114,7 @@ var ASM_CONSTS = {
       target.addEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal);
     }
   },
-  18611849: $0 => {
+  18611641: $0 => {
     var SDL3 = Module["SDL3"];
     if (SDL3.makePointerEventCStruct === undefined) {
       SDL3.makePointerEventCStruct = function(left, top, event) {
@@ -10565,7 +10152,7 @@ var ASM_CONSTS = {
       };
     }
   },
-  18612841: $0 => {
+  18612633: $0 => {
     var id = UTF8ToString($0);
     try {
       var canvas = document.querySelector(id);
@@ -10575,23 +10162,23 @@ var ASM_CONSTS = {
     } catch (e) {}
     return false;
   },
-  18613007: () => document.hasFocus(),
-  18613039: () => {
+  18612799: () => document.hasFocus(),
+  18612831: () => {
     var target = document;
     if (target) {
       target.removeEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal);
       target.sdlEventHandlerMouseButtonUpGlobal = undefined;
     }
   },
-  18613221: () => document.body.clientWidth,
-  18613259: () => document.body.clientHeight,
-  18613298: () => window.innerWidth,
-  18613328: () => window.innerHeight,
-  18613359: () => window.outerWidth,
-  18613389: () => window.outerHeight,
-  18613420: () => window.pageXOffset,
-  18613451: () => window.pageYOffset,
-  18613482: ($0, $1) => {
+  18613013: () => document.body.clientWidth,
+  18613051: () => document.body.clientHeight,
+  18613090: () => window.innerWidth,
+  18613120: () => window.innerHeight,
+  18613151: () => window.outerWidth,
+  18613181: () => window.outerHeight,
+  18613212: () => window.pageXOffset,
+  18613243: () => window.pageYOffset,
+  18613274: ($0, $1) => {
     var target = document.querySelector(UTF8ToString($1));
     if (target) {
       var SDL3 = Module["SDL3"];
@@ -10629,7 +10216,7 @@ var ASM_CONSTS = {
       target.addEventListener("pointerup", target.sdlEventHandlerPointerGeneric);
     }
   },
-  18614870: ($0, $1, $2) => {
+  18614662: ($0, $1, $2) => {
     var target = document.querySelector(UTF8ToString($1));
     if (target) {
       var data = $0;
@@ -10709,7 +10296,7 @@ var ASM_CONSTS = {
       target.addEventListener("dragleave", SDL3.eventHandlerDropDragend);
     }
   },
-  18617237: $0 => {
+  18617029: $0 => {
     var target = document.querySelector(UTF8ToString($0));
     if (target) {
       var SDL3 = Module["SDL3"];
@@ -10737,7 +10324,7 @@ var ASM_CONSTS = {
       SDL3.eventHandlerDropDragend = undefined;
     }
   },
-  18618067: $0 => {
+  18617859: $0 => {
     var target = document.querySelector(UTF8ToString($0));
     if (target) {
       target.removeEventListener("pointerenter", target.sdlEventHandlerPointerEnter);
@@ -10752,7 +10339,7 @@ var ASM_CONSTS = {
       target.sdlEventHandlerPointerGeneric = undefined;
     }
   },
-  18618801: () => {
+  18618593: () => {
     if (!window.matchMedia) {
       return -1;
     }
@@ -10764,7 +10351,7 @@ var ASM_CONSTS = {
     }
     return -1;
   },
-  18619010: () => {
+  18618802: () => {
     if (typeof (Module["SDL3"]) !== "undefined") {
       var SDL3 = Module["SDL3"];
       SDL3.themeChangedMatchMedia.removeEventListener("change", SDL3.eventHandlerThemeChanged);
@@ -10772,14 +10359,14 @@ var ASM_CONSTS = {
       SDL3.eventHandlerThemeChanged = undefined;
     }
   },
-  18619263: () => window.innerWidth,
-  18619293: () => window.innerHeight,
-  18619324: $0 => {
+  18619055: () => window.innerWidth,
+  18619085: () => window.innerHeight,
+  18619116: $0 => {
     Module["requestFullscreen"] = function(lockPointer, resizeCanvas) {
       _requestFullscreenThroughSDL($0);
     };
   },
-  18619433: ($0, $1) => {
+  18619225: ($0, $1) => {
     var pngData = (growMemViews(), HEAPU8).buffer instanceof ArrayBuffer ? (growMemViews(), 
     HEAPU8).subarray($0, $0 + $1) : (growMemViews(), HEAPU8).slice($0, $0 + $1);
     var blob = new Blob([ pngData ], {
@@ -10798,12 +10385,12 @@ var ASM_CONSTS = {
     }
     link.href = url;
   },
-  18619926: () => {
+  18619718: () => {
     Module["requestFullscreen"] = function(lockPointer, resizeCanvas) {};
   },
-  1862e4: () => window.innerWidth,
-  18620030: () => window.innerHeight,
-  18620061: $0 => {
+  18619792: () => window.innerWidth,
+  18619822: () => window.innerHeight,
+  18619853: $0 => {
     var canvas = document.querySelector(UTF8ToString($0));
     canvas.SDL3_original_position = canvas.style.position;
     canvas.SDL3_original_top = canvas.style.top;
@@ -10824,7 +10411,7 @@ var ASM_CONSTS = {
     canvas.style.top = "0";
     canvas.style.left = "0";
   },
-  18620759: () => {
+  18620551: () => {
     var div = document.getElementById("SDL3_fill_document_background_elements");
     if (div) {
       if (div.SDL3_canvas_nextsib) {
@@ -10841,7 +10428,7 @@ var ASM_CONSTS = {
       div.remove();
     }
   },
-  18621318: () => {
+  18621110: () => {
     if (window.matchMedia) {
       var SDL3 = Module["SDL3"];
       SDL3.eventHandlerThemeChanged = function(event) {
@@ -10851,7 +10438,7 @@ var ASM_CONSTS = {
       SDL3.themeChangedMatchMedia.addEventListener("change", SDL3.eventHandlerThemeChanged);
     }
   },
-  18621640: ($0, $1, $2, $3, $4) => {
+  18621432: ($0, $1, $2, $3, $4) => {
     var title = UTF8ToString($0);
     var message = UTF8ToString($1);
     var background = UTF8ToString($2);
@@ -10871,7 +10458,7 @@ var ASM_CONSTS = {
     dialog.append(p);
     dialog.showModal();
   },
-  18622181: ($0, $1, $2, $3, $4, $5, $6, $7) => {
+  18621973: ($0, $1, $2, $3, $4, $5, $6, $7) => {
     var dialog_id = UTF8ToString($0);
     var text = UTF8ToString($1);
     var responseId = $2;
@@ -10912,7 +10499,7 @@ var ASM_CONSTS = {
     dialog.append(button);
     return true;
   },
-  18623190: $0 => {
+  18622982: $0 => {
     var dialog_id = UTF8ToString($0);
     var dialog = document.getElementById(dialog_id);
     if (!dialog) {
@@ -10920,7 +10507,7 @@ var ASM_CONSTS = {
     }
     return dialog.open;
   },
-  18623328: $0 => {
+  18623120: $0 => {
     var dialog_id = UTF8ToString($0);
     var dialog = document.getElementById(dialog_id);
     if (!dialog) {
@@ -10932,7 +10519,7 @@ var ASM_CONSTS = {
       return 0;
     }
   },
-  18623510: ($0, $1) => {
+  18623302: ($0, $1) => {
     alert(UTF8ToString($0) + "\n\n" + UTF8ToString($1));
   }
 };
@@ -11292,7 +10879,6 @@ function assignWasmImports() {
     /** @export */ emscripten_glFenceSync: _emscripten_glFenceSync,
     /** @export */ emscripten_glFinish: _emscripten_glFinish,
     /** @export */ emscripten_glFlush: _emscripten_glFlush,
-    /** @export */ emscripten_glFlushMappedBufferRange: _emscripten_glFlushMappedBufferRange,
     /** @export */ emscripten_glFramebufferRenderbuffer: _emscripten_glFramebufferRenderbuffer,
     /** @export */ emscripten_glFramebufferTexture2D: _emscripten_glFramebufferTexture2D,
     /** @export */ emscripten_glFramebufferTextureLayer: _emscripten_glFramebufferTextureLayer,
@@ -11318,7 +10904,6 @@ function assignWasmImports() {
     /** @export */ emscripten_glGetBooleanv: _emscripten_glGetBooleanv,
     /** @export */ emscripten_glGetBufferParameteri64v: _emscripten_glGetBufferParameteri64v,
     /** @export */ emscripten_glGetBufferParameteriv: _emscripten_glGetBufferParameteriv,
-    /** @export */ emscripten_glGetBufferPointerv: _emscripten_glGetBufferPointerv,
     /** @export */ emscripten_glGetError: _emscripten_glGetError,
     /** @export */ emscripten_glGetFloatv: _emscripten_glGetFloatv,
     /** @export */ emscripten_glGetFragDataLocation: _emscripten_glGetFragDataLocation,
@@ -11381,7 +10966,6 @@ function assignWasmImports() {
     /** @export */ emscripten_glIsVertexArrayOES: _emscripten_glIsVertexArrayOES,
     /** @export */ emscripten_glLineWidth: _emscripten_glLineWidth,
     /** @export */ emscripten_glLinkProgram: _emscripten_glLinkProgram,
-    /** @export */ emscripten_glMapBufferRange: _emscripten_glMapBufferRange,
     /** @export */ emscripten_glPauseTransformFeedback: _emscripten_glPauseTransformFeedback,
     /** @export */ emscripten_glPixelStorei: _emscripten_glPixelStorei,
     /** @export */ emscripten_glPolygonModeWEBGL: _emscripten_glPolygonModeWEBGL,
@@ -11455,7 +11039,6 @@ function assignWasmImports() {
     /** @export */ emscripten_glUniformMatrix4fv: _emscripten_glUniformMatrix4fv,
     /** @export */ emscripten_glUniformMatrix4x2fv: _emscripten_glUniformMatrix4x2fv,
     /** @export */ emscripten_glUniformMatrix4x3fv: _emscripten_glUniformMatrix4x3fv,
-    /** @export */ emscripten_glUnmapBuffer: _emscripten_glUnmapBuffer,
     /** @export */ emscripten_glUseProgram: _emscripten_glUseProgram,
     /** @export */ emscripten_glValidateProgram: _emscripten_glValidateProgram,
     /** @export */ emscripten_glVertexAttrib1f: _emscripten_glVertexAttrib1f,

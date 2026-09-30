@@ -145,12 +145,12 @@ typedef struct vec3f3i128 {
 
 typedef struct pos3i128 {
     vec3i128 p;
-    vec3i128 v;
-    vec3i128 a;
+    vec3f v;
+    vec3f a;
 } pos3i128;
 
 struct point_particle { // all derived*
-    float M;            // mass
+    float m;            // mass
     pos3i128 t;         // translative pos, vel, acc
     float I;            // rotational inertia
     pos3i128 r;         // rotational pos, vel, acc

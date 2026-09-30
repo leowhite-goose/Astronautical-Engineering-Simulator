@@ -228,17 +228,22 @@ void perspective(float fovY, float aspect, float z_near, float z_far, float* mat
 void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam, vec4f color) {
     //SDL_Log("%" SDL_PRIu32, triangle_count);
     //SDL_Log("HYIj - %.3f", (float) (*vert128)[6].x);
+    vec32i3i128 *vert128local = (vec32i3i128 *) SDL_malloc(sizeof(vec32i3i128) * vertex_count);
+    for (int i = 0; i < vertex_count; i++) {
+        if (!hold_rendering) { // so physics' intermediate steps aren't loaded in, here
+            vert128local[i] = (*vert128)[i]; // so that this doesn't modify data physics engine is using
+        } else {
+            SDL_DelayNS(0);
+            i -= 1;
+        }
+    }
     vec3i128 translate;
     translate.x = -cam.x;
     translate.y = -cam.y;
     translate.z = -cam.z;
-    vert128_translate(&vertex_count, vert128, translate);
-    vert128_to_verf(&vertex_count, vert128, vertf);
-    translate.x = cam.x;
-    translate.y = cam.y;
-    translate.z = cam.z;
-    vert128_translate(&vertex_count, vert128, translate);
-    //SDL_Log("HYIf - %.3f", (float) (*vertf)[6].x);
+    vert128_translate(&vertex_count, &vert128local, translate);
+    vert128_to_verf_i(&vertex_count, &vert128local, vertf);
+    SDL_free(vert128local);
     for (int i = 0; i < triangle_count; i++) {
         //vec3f normal = generate_normal((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
         vec3d normald = generate_normald((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
@@ -261,7 +266,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     translate.y = -cam.y;
     translate.z = -cam.z;
     vert128_translate(&vertex_count, vert128, translate);
-    vert128_to_verf(&vertex_count, vert128, nodes);
+    vert128_to_verf_i(&vertex_count, vert128, nodes);
     translate.x = cam.x;
     translate.y = cam.y;
     translate.z = cam.z;
@@ -374,8 +379,8 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
     glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &projection_matrix[0]);
     //glUniform3f(light_pos_loc, 0, 0, 0);
-    //glUniform3f(light_pos_loc, (float) body[0].CM.t.p.x, (float) body[0].CM.t.p.y, (float) body[0].CM.t.p.z);
-    glUniform3f(light_pos_loc, 0*SCALE - root_cam.x, 1e9*SCALE - root_cam.y, 0 - root_cam.z);
+    glUniform3f(light_pos_loc, (float) body[0].CM.t.p.x - root_cam.x, (float) body[0].CM.t.p.y - root_cam.y, (float) body[0].CM.t.p.z - root_cam.z);
+    //glUniform3f(light_pos_loc, 0*SCALE - root_cam.x, 1e9*SCALE - root_cam.y, 0 - root_cam.z);
 
     glBindVertexArray(vao);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -406,13 +411,14 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     vec4f color1 = {0.7,0.7,0.7,1.0};
     vec4f color2 = {0.8,0.7,0.4,1.0};
     vec4f color3 = {0.5,0.6,0.8,1.0};
-    vec4f color4 = {0.8,0.5,0.5,1.0};
-    vec4f color5 = {0.7,0.6,0.4,1.0};
-    vec4f color6 = {0.7,0.6,0.3,1.0};
-    vec4f color7 = {0.5,0.6,0.8,1.0};
-    vec4f color8 = {0.5,0.6,0.9,1.0};
-    vec4f color9 = {0.6,0.6,0.6,1.0};
+    vec4f color4 = {0.7,0.7,0.7,1.0};
+    vec4f color5 = {0.8,0.5,0.5,1.0};
+    vec4f color6 = {0.7,0.6,0.4,1.0};
+    vec4f color7 = {0.7,0.6,0.3,1.0};
+    vec4f color8 = {0.5,0.6,0.8,1.0};
+    vec4f color9 = {0.5,0.6,0.9,1.0};
     vec4f color10 = {0.6,0.6,0.6,1.0};
+    vec4f color11 = {0.6,0.6,0.6,1.0};
     render_body(0,color0,0);
     render_body(1,color1,1);
     render_body(2,color2,1);
@@ -424,6 +430,7 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     render_body(8,color8,1);
     render_body(9,color9,1);
     render_body(10,color10,1);
+    render_body(11,color11,1);
 }
 
 #endif

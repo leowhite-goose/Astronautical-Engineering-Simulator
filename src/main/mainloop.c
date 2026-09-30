@@ -51,12 +51,15 @@ SDL_AppResult AES_mainloop() {
     }
     bool move_to_body_3 = key_down(SDL_SCANCODE_3);
     if (move_to_body_3) {
-        root_cam.a = 210;
+        root_cam.a = 250;
         root_cam.b = 90;
         root_cam.c = 0;
         root_cam.x = body[3].geo.vert128[0].x + SCALE*5000e3;
         root_cam.y = body[3].geo.vert128[0].y + SCALE*12000e3;
         root_cam.z = body[3].geo.vert128[0].z;
+        /*root_cam.x += body[3].CM.t.v.x * SCALE;
+        root_cam.y += body[3].CM.t.v.y * SCALE;
+        root_cam.z += body[3].CM.t.v.z * SCALE;*/
     }
     bool move_to_body_4 = key_down(SDL_SCANCODE_4);
     if (move_to_body_4) {
@@ -115,6 +118,16 @@ SDL_AppResult AES_mainloop() {
         root_cam.z = -27*SCALE;
     }
 
+    bool move_to_body_10 = key_down(SDL_SCANCODE_0);
+    if (move_to_body_10) {
+        root_cam.x = body[10].CM.t.p.x + 0 * SCALE;
+        root_cam.y = body[10].CM.t.p.y + 0 * SCALE;
+        root_cam.z = body[10].CM.t.p.z + 100 * SCALE;
+        /*root_cam.x += body[3].CM.t.v.x * SCALE;
+         *   root_cam.y += body[3].CM.t.v.y * SCALE;
+         *   root_cam.z += body[3].CM.t.v.z * SCALE;*/
+    }
+
     char last_key[16];
     last_key_down(last_key, sizeof(last_key));
     if (SDL_strcmp(last_key, "No keys down")) {
@@ -122,7 +135,7 @@ SDL_AppResult AES_mainloop() {
     }
     //bool is_fullscreen = key_toggle(SDL_SCANCODE_F11);
     bool pan_camera = (mouse.right.toggle || touch_button[7]) && (root_window == SDL_GetMouseFocus());
-    static int cam_speed = 58; // 58, 80
+    static int cam_speed = 58; // 7, 58, 80, 125
     static int pan_sensitivity = -2;
     if (mouse.scrolling && key_down(SDL_SCANCODE_LSHIFT)) {cam_speed += mouse.wheel.y;}
     if (mouse.scrolling && key_down(SDL_SCANCODE_LCTRL)) {pan_sensitivity += mouse.wheel.y;}
@@ -137,8 +150,8 @@ SDL_AppResult AES_mainloop() {
         pan_x = mouse.x_rel * SDL_pow(2,pan_sensitivity/4);
         pan_y = mouse.y_rel * SDL_pow(2,pan_sensitivity/4);
     } else {
-        pan_x = touch_analog[0] * SDL_pow(2,pan_sensitivity/4);
-        pan_y = touch_analog[1] * SDL_pow(2,pan_sensitivity/4);
+        pan_x = SDL_powf(touch_analog[0],3) * SDL_pow(pan_sensitivity,2);
+        pan_y = SDL_powf(touch_analog[1],3) * SDL_pow(pan_sensitivity,2);
     }
     //SDL_SetWindowFullscreen(root_window, is_fullscreen);
     //SDL_Log("x%.3f y%.3f", pan_x, pan_y);
@@ -168,9 +181,9 @@ SDL_AppResult AES_mainloop() {
     }
     // camera moving
     if (cam_move_forward) {
-        float cam_move_y = -cam_move_forward * cam_vel * SDL_sinf(-root_cam.b*SDL_PI_F/180) * SDL_sinf(root_cam.a*SDL_PI_F/180);
-        float cam_move_z = cam_move_forward * cam_vel * SDL_cosf(-root_cam.b*SDL_PI_F/180);
-        float cam_move_x = -cam_move_forward * cam_vel * SDL_sinf(-root_cam.b*SDL_PI_F/180) * SDL_cosf(root_cam.a*SDL_PI_F/180);
+        int128 cam_move_y = (int128) -cam_move_forward * cam_vel * SDL_sin(-root_cam.b*SDL_PI_D/180) * SDL_sin(root_cam.a*SDL_PI_D/180);
+        int128 cam_move_z = (int128) cam_move_forward * cam_vel * SDL_cos(-root_cam.b*SDL_PI_D/180);
+        int128 cam_move_x = (int128) -cam_move_forward * cam_vel * SDL_sin(-root_cam.b*SDL_PI_D/180) * SDL_cos(root_cam.a*SDL_PI_D/180);
 
         if (root_cam.y + cam_move_y <= -SDL_powf(2, 126)) {
             root_cam.y = -SDL_powf(2,126);
@@ -197,9 +210,9 @@ SDL_AppResult AES_mainloop() {
         }
     }
     if (cam_move_right) {
-        float cam_move_y = cam_move_right * cam_vel * SDL_cosf(root_cam.a*SDL_PI_F/180);
-        float cam_move_z = cam_move_right * cam_vel * 0;
-        float cam_move_x = -cam_move_right * cam_vel * SDL_sinf(root_cam.a*SDL_PI_F/180);
+        int128 cam_move_y = (int128) cam_move_right * cam_vel * SDL_cosf(root_cam.a*SDL_PI_F/180);
+        int128 cam_move_z = (int128) cam_move_right * cam_vel * 0;
+        int128 cam_move_x = (int128) -cam_move_right * cam_vel * SDL_sinf(root_cam.a*SDL_PI_F/180);
 
         if (root_cam.y + cam_move_y <= -SDL_powf(2, 126)) {
             root_cam.y = -SDL_powf(2,126);
@@ -226,9 +239,9 @@ SDL_AppResult AES_mainloop() {
         }
     }
     if (cam_move_up) {
-        float cam_move_y = -cam_move_up * cam_vel * SDL_cosf(-root_cam.b*SDL_PI_F/180) * SDL_sinf(root_cam.a*SDL_PI_F/180);
-        float cam_move_z = -cam_move_up * cam_vel * SDL_sinf(-root_cam.b*SDL_PI_F/180);
-        float cam_move_x = -cam_move_up * cam_vel * SDL_cosf(-root_cam.b*SDL_PI_F/180) * SDL_cosf(root_cam.a*SDL_PI_F/180);
+        int128 cam_move_y = (int128) -cam_move_up * cam_vel * SDL_cosf(-root_cam.b*SDL_PI_F/180) * SDL_sinf(root_cam.a*SDL_PI_F/180);
+        int128 cam_move_z = (int128) -cam_move_up * cam_vel * SDL_sinf(-root_cam.b*SDL_PI_F/180);
+        int128 cam_move_x = (int128) -cam_move_up * cam_vel * SDL_cosf(-root_cam.b*SDL_PI_F/180) * SDL_cosf(root_cam.a*SDL_PI_F/180);
 
         if (root_cam.y + cam_move_y <= -SDL_powf(2, 126)) {
             root_cam.y = -SDL_powf(2,126);
@@ -268,6 +281,11 @@ SDL_AppResult AES_mainloop() {
     // resetting active control state
     mouse.moving = false;
     mouse.scrolling = false;
+
+    int jk = 1;
+    SDL_Log("Elapsed Sim Time : %.3lf", elapsed_simulated_time);
+    SDL_Log("Mercury Position : X = %.0lf Y = %.0lf Z = %.0lf", (double) body[jk].CM.t.p.x / (SCALE*1e3), (double) body[jk].CM.t.p.y / (SCALE*1e3), (double) body[jk].CM.t.p.z / (SCALE*1e3));
+    SDL_Log("Mercury Velocity : X = %.3lf Y = %.3lf Z = %.3lf", (double) body[jk].CM.t.v.x / (1e3), (double) body[jk].CM.t.v.y / (1e3), (double) body[jk].CM.t.v.z / (1e3));
 
     // FPS
     static uint64 accu = 0;

@@ -20,7 +20,7 @@ SDL_Keymod keymod_state;
 struct mouse mouse;
 struct touch touch[10];
 
-#define SCALE 1e15 // 1e-1 1e2 1e9 1e35; 1e15 --> 1 = fm, 1e15 = meter
+#define SCALE 1e15 // 1e-1 1e2 1e9 3e35; 1e15 --> 1 = fm, 1e15 = meter
 vec3f3i128 root_cam = {45,75,0,-67*SCALE,-60*SCALE,-27*SCALE};
 //vec3f3i128 cam_pos = {};
 
@@ -61,5 +61,10 @@ unsigned int vbo, vao, ebo;
 unsigned int shader_program;
 unsigned int unlit_shader;
 unsigned int tex_shader_program;
+
+double elapsed_simulated_time;
+float dt = 0.001; // 0.001
+bool hold_rendering = false;
+int32 mod_body;
 
 #endif
