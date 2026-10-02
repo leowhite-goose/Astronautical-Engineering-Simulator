@@ -1,13 +1,21 @@
+#define SDL_MAIN_USE_CALLBACKS 1 // use the callbacks instead of main()
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
 
+#ifdef SDL_PLATFORM_WIN32
+#include <windows.h>
+#include <SDL3/SDL_opengl.h>
+#include <SDL3/SDL_opengl_glext.h>
+#endif
+
+#ifndef SDL_PLATFORM_WIN32
 #include <SDL3/SDL_opengles2.h>
 #include <SDL3/SDL_opengles2_gl2ext.h>
-
-#define SDL_MAIN_USE_CALLBACKS 1 // use the callbacks instead of main()
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
+#endif
 
 #include "../common.c"
 #include "../global.c" // order matters: this must be included after common.c in order to see its datatypes

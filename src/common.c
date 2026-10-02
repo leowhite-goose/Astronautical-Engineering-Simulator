@@ -2,6 +2,7 @@
 #define COMMON_C
 
 #include "../lib/cglm-0.9.6/include/cglm/cglm.h"
+#include <SDL3/SDL_time.h>
 
 // defines
 #define physics_dt 0.001        // in seconds
@@ -166,7 +167,8 @@ struct geometry {
     int32 tri_cnt;
     vec32i3f *vertf;
     vec32i3d *vertd;
-    vec32i3i128 *vert128;
+    vec32i3i128 *vert128;   // for rendering* (deep copied from below)
+    vec32i3i128 *vert128_buffer; // for physics (current working buffer)
     vec5i32 *tetra;
     vec4i32 *tri;       // surface (if filtered)
 };
@@ -174,6 +176,7 @@ struct geometry {
 struct body {
     struct geometry geo;
     struct point_particle CM;
+    struct point_particle CM_prev;
 };
 
 typedef void (APIENTRY * glGenVertexArrays_func)(GLsizei n, GLuint *arrays);
@@ -181,6 +184,83 @@ glGenVertexArrays_func glGenVertexArrays = 0;
 
 typedef void (APIENTRY * glBindVertexArray_func)(GLuint array);
 glBindVertexArray_func glBindVertexArray = 0;
+
+#ifdef SDL_PLATFORM_WIN32
+typedef void (APIENTRY * glGenBuffers_func)(GLsizei n, GLuint * buffers); // https://wiki.libsdl.org/SDL3/SDL_GL_GetProcAddress
+glGenBuffers_func glGenBuffers = 0;
+
+typedef void (APIENTRY * glBindBuffer_func)(GLenum target, GLuint buffer);
+glBindBuffer_func glBindBuffer = 0;
+
+typedef void (APIENTRY * glBufferData_func)(GLenum target, GLsizeiptr size, const void * data, GLenum usage);
+glBufferData_func glBufferData = 0;
+
+typedef GLuint (APIENTRY * glCreateShader_func)(GLenum shaderType);
+glCreateShader_func glCreateShader = 0;
+
+typedef void (APIENTRY * glShaderSource_func)(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
+glShaderSource_func glShaderSource = 0;
+
+typedef void (APIENTRY * glCompileShader_func)(GLuint shader);
+glCompileShader_func glCompileShader = 0;
+
+typedef GLuint (APIENTRY * glCreateProgram_func)(void);
+glCreateProgram_func glCreateProgram = 0;
+
+typedef void (APIENTRY * glAttachShader_func)(GLuint program, GLuint shader);
+glAttachShader_func glAttachShader = 0;
+
+typedef void (APIENTRY * glLinkProgram_func)(GLuint program);
+glLinkProgram_func glLinkProgram = 0;
+
+typedef void (APIENTRY * glDeleteShader_func)(GLuint shader);
+glDeleteShader_func glDeleteShader = 0;
+
+typedef void (APIENTRY * glVertexAttribPointer_func)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
+glVertexAttribPointer_func glVertexAttribPointer = 0;
+
+typedef void (APIENTRY * glEnableVertexAttribArray_func)(GLuint index);
+glEnableVertexAttribArray_func glEnableVertexAttribArray = 0;
+
+typedef void (APIENTRY * glUseProgram_func)(GLuint program);
+glUseProgram_func glUseProgram = 0;
+
+typedef void (APIENTRY * glGetProgramiv_func)(GLuint program, GLenum pname, GLint *params);
+glGetProgramiv_func glGetProgramiv = 0;
+
+typedef void (APIENTRY * glGetProgramInfoLog_func)(GLuint program, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+glGetProgramInfoLog_func glGetProgramInfoLog = 0;
+
+typedef void (APIENTRY * glGetShaderiv_func)(GLuint shader, GLenum pname, GLint *params);
+glGetShaderiv_func glGetShaderiv = 0;
+
+typedef void (APIENTRY * glGetShaderInfoLog_func)(GLuint shader, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+glGetShaderInfoLog_func glGetShaderInfoLog = 0;
+
+typedef void (APIENTRY * glUniformMatrix4fv_func)(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value); // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glUniform.xhtml
+glUniformMatrix4fv_func glUniformMatrix4fv = 0;
+
+typedef GLint (APIENTRY * glGetUniformLocation_func)(GLuint program, const GLchar *name);
+glGetUniformLocation_func glGetUniformLocation = 0;
+
+typedef void (APIENTRY * glGetnUniformfv_func)(GLuint program, GLint location, GLsizei bufSize, GLfloat *params);
+glGetnUniformfv_func glGetnUniformfv = 0;
+
+typedef void (APIENTRY * glProgramUniformMatrix4fv_func)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+glProgramUniformMatrix4fv_func glProgramUniformMatrix4fv = 0;
+
+typedef void (APIENTRY * glUniform4f_func)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+glUniform4f_func glUniform4f = 0;
+
+typedef void (APIENTRY * glBufferSubData_func)(GLenum target, GLintptr offset, GLsizeiptr size, const void * data);
+glBufferSubData_func glBufferSubData = 0;
+
+typedef void (APIENTRY * glUniform3f_func)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
+glUniform3f_func glUniform3f = 0;
+
+typedef void (APIENTRY * glActiveTexture_func)(GLenum texture);
+glActiveTexture_func glActiveTexture_ = 0;
+#endif
 
 // structs
 SDL_FRect rect4f;

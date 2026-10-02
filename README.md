@@ -42,6 +42,10 @@ If you just want to run the program, using a machine running some typical deskto
 5. run program with:
     - ./AES
 
+### Compiling WIP Windows Port
+1. Using Fedora linux, install mingw64-SDL3 && mingw64-gcc
+2. Run: x86_64-w64-mingw32-gcc src/main/main.c -o AES -lSDL3 -lopengl32 -lm
+    
 ### Compiling for Emscripten
 1. search "emscripten" and go through the intro steps for setting it up; you'll its commands to run the following:
 2. to build:

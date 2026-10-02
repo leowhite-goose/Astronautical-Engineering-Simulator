@@ -87,7 +87,12 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
 
+    #ifndef SDL_PLATFORM_WIN32
     glActiveTexture(GL_TEXTURE0);
+    #endif
+    #ifdef SDL_PLATFORM_WIN32
+    glActiveTexture_(GL_TEXTURE0);
+    #endif
     glBindTexture(GL_TEXTURE_2D, root_gui_gl_texture);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Use blurry texture mapping (replace GL_LINEAR with GL_NEAREST for blocky)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -115,18 +120,19 @@ void gl_render_root_gui(float window_width, float window_height) { // https://st
         -x_scale + x_offset, -y_scale + y_offset, 0, 1, // top left
         x_scale + x_offset, y_scale + y_offset, 1, 0 // bottom right
     };
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 24, &gui_data[0], GL_DYNAMIC_DRAW);
+    //glBindVertexArray(vao);
+    //glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 24, &gui_data[0], GL_DYNAMIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 24, &gui_data[0]); // glMapBuffer
     //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2* sizeof(float)));
     glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    //glBindBuffer(GL_ARRAY_BUFFER, 0);
+    //glBindVertexArray(0);
 
-    glBindVertexArray(vao);
+    //glBindVertexArray(vao);
 
     glUseProgram(tex_shader_program);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -169,7 +175,8 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, 31);
 
     SDL_FRect rects_f[] = {
-        {0, 0, 128, 150}, // number & stats overlay
+        //{0, 0, 128, 150}, // number & stats overlay
+        {0, 0, 0, 0}, // number & stats overlay
         {80, window_height - 80 - 32, 32, 32}, // middle
         {32, window_height - 80 - 32, 32, 32}, // left
         {80, window_height - 128 - 32, 32, 32}, // top
@@ -223,19 +230,24 @@ void onscreen_overlay(int cam_speed, int pan_sensitivity, int last_fps, int last
     SDL_FRect rect8 = {window_width - 128 - 48 + 64*(touch_analog[0]+1), window_height - 128 - 48 + 64*(touch_analog[1]+1), 32, 32};
     SDL_RenderFillRect(root_gui_renderer, &rect8);
     SDL_SetRenderDrawColor(root_gui_renderer, 255, 255, 255, SDL_ALPHA_OPAQUE); // sets draw color to white, full alpha
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 10, "Cam Vel:%" SDL_PRIs32, cam_speed);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 10, "Cam Vel: 2^%d fm/s", cam_speed);
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 26, "Pan Vel:%" SDL_PRIs32, pan_sensitivity);
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 42, "%.2lf"  "x %.2lf" "y %.2lf" "z", (double) root_cam.x / SCALE, (double) root_cam.y / SCALE, (double) root_cam.z / SCALE);
     SDL_RenderDebugTextFormat(root_gui_renderer, 10, 58, "%.1lf"  "x %.1lf" "y %.1lf" "z", (double) root_cam.a, (double) root_cam.b, (double) root_cam.c);
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 74, "%" SDL_PRIs32, (int) global_fp);
 
     p2c.x = root_cam.x+1;
     p2c.y = root_cam.y+1;
     p2c.z = root_cam.z+1;
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 90, "Collision?:%" SDL_PRIs32, (int) blue_overlap);
 
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 106, "%" SDL_PRIs32, (int) last_fps);
-    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 122, "%" SDL_PRIs32, (int) last_tps);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 74, "FPS : %d", (int) last_fps);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 90, "Sim speed : %d / 1000", (int) last_tps);
+
+    SDL_DateTime UTC_date_time;
+    SDL_TimeToDateTime(9.46727995816e17 - 60e9 + ns_since_J2000, &UTC_date_time, false);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 106, "%d-%d-%d", UTC_date_time.day, UTC_date_time.month, UTC_date_time.year );
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 124, "%d:%d:%d UTC", UTC_date_time.hour, UTC_date_time.minute, UTC_date_time.second);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 140, "Timewarp (z) : %.1lfx", timewarp);
+    SDL_RenderDebugTextFormat(root_gui_renderer, 10, 156, "Delta-v Spent (space) : %.1lfm/s", delta_v_spent);
 
     SDL_RenderPresent(root_gui_renderer); // put it all on the screen!
 

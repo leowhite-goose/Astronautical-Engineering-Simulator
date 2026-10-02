@@ -293,39 +293,42 @@ void vec3f_to_vert128(int32 *vertex_count, vec3f **vertf, vec32i3i128 **vert128,
 }
 
 void sort3i32(int32 *a, int32 *b, int32 *c) { // 1, 2, ... (increasing order); abc, acb, cab, bac, bca, cba
+    int32 at = (*a);
+    int32 bt = (*b);
+    int32 ct = (*c);
     if ((a < b) && (b < c)) {           // abc
         return;
     } else if ((a < c) && (c < b)) {    // acb ; to-do tree optimize?
-        (*a) = (*a);
-        (*b) = (*c);
-        (*c) = (*b);
+        (*a) = at;
+        (*b) = ct;
+        (*c) = bt;
         return;
     } else if ((c < a) && (a < b)) {    // cab
-        (*a) = (*c);
-        (*b) = (*a);
-        (*c) = (*b);
+        (*a) = ct;
+        (*b) = at;
+        (*c) = bt;
         return;
     } else if ((b < a) && (a < c)) {    // bac
-        (*a) = (*b);
-        (*b) = (*a);
-        (*c) = (*c);
+        (*a) = bt;
+        (*b) = at;
+        (*c) = ct;
         return;
     } else if ((b < c) && (c < a)) {    // bca
-        (*a) = (*b);
-        (*b) = (*c);
-        (*c) = (*a);
+        (*a) = bt;
+        (*b) = ct;
+        (*c) = at;
         return;
     } else if ((c < b) && (b < a)) {    // cba
-        (*a) = (*c);
-        (*b) = (*b);
-        (*c) = (*a);
+        (*a) = ct;
+        (*b) = bt;
+        (*c) = at;
         return;
     } else {
         return; // shouldn't happen
     }
 }
 
-int comp(const void *a, const void *b) { // https://www.geeksforgeeks.org/c/qsort-function-in-c/
+int comp32i(const void *a, const void *b) { // https://www.geeksforgeeks.org/c/qsort-function-in-c/
     int x = *(const int *)a;
     int y = *(const int *)b;
 
@@ -336,96 +339,158 @@ int comp(const void *a, const void *b) { // https://www.geeksforgeeks.org/c/qsor
     return 0;
 }
 
+int compd(const void *a, const void *b) {
+    double x = *(const double *)a;
+    double y = *(const double *)b;
+
+    if (x < y)
+        return -1;
+    if (x > y)
+        return 1;
+    return 0;
+}
+
+int comp128ui(const void *a, const void *b) {
+    uint128 x = *(const uint128 *)a;
+    uint128 y = *(const uint128 *)b;
+
+    if (x < y)
+        return -1;
+    if (x > y)
+        return 1;
+    return 0;
+}
+
+void i128_to_binary_string(int128 N, char *str) { // https://www.geeksforgeeks.org/c/how-to-convert-an-integer-to-a-string-in-c/
+    int i = 0;
+
+    // Save the copy of the number for sign
+    int128 sign = N;
+
+    // If the number is negative, make it positive
+    if (N < 0)
+        N = -N;
+
+    // Extract digits from the number and add them to the
+    // string
+    while (N > 0) {
+
+        // Convert integer digit to character and store
+        // it in the str
+        str[i++] = N % 2 + '0';
+        N /= 2;
+    }
+
+    // If the number was negative, add a minus sign to the
+    // string
+    if (sign < 0) {
+        str[i++] = '-';
+    }
+
+    // Null-terminate the string
+    str[i] = '\0';
+
+    // Reverse the string to get the correct order
+    for (int j = 0, k = i - 1; j < k; j++, k--) {
+        char temp = str[j];
+        str[j] = str[k];
+        str[k] = temp;
+    }
+}
+
 //int SDLCALL compare(const void *a, const void *b) // https://wiki.libsdl.org/SDL3/SDL_qsort
 
 void remove_shared_faces (int32 triangle_count, vec4i32 **triangles) {
-    vec4i32 ordered_triangle_values[triangle_count];
-    int32 triangle_ids[triangle_count*3];
-    int48 triangle_prime_ids[triangle_count];
-    //vec3i32 primes = {32771, 32779, 32783}; // must be fewer than just over 2^15 triangles; http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
-    vec3i32 primes = {2097169, 2097211, 2097223}; // 2097169 2^21
+    uint128 triangle_ids[triangle_count];
     for (int i = 0; i < triangle_count; i++) {
-        int32 id = (*triangles)[i].w;
-        int32 a = (*triangles)[i].x;
-        int32 b = (*triangles)[i].y;
-        int32 c = (*triangles)[i].z;
-        sort3i32(&a, &b, &c);
-        triangle_prime_ids[i] = a*primes.x + b*primes.y + c*primes.z;
-        /*ordered_triangle_values[i].w = id;
-        ordered_triangle_values[i].x = a;
-        ordered_triangle_values[i].y = b;
-        ordered_triangle_values[i].z = c;*/
-        //SDL_Log("%" SDL_PRIu32 "J0 - %" SDL_PRIu64, i, triangle_ids[i]);
-        //triangle_ids[i] = (int128) a + b<<35 + c<<67; //a,b,c need to be positive; padding = 3*
-        triangle_ids[3*i + 0] = a;
-        triangle_ids[3*i + 2] = b;
-        triangle_ids[3*i + 1] = c;
-        //SDL_Log("%" SDL_PRIu32 "Jabc - %" SDL_PRIu64, i, triangle_ids[i] - b<<35 - a - c<<67);
-    } // all sets of same numbers are now identical: {1,2,3},{3,1,2} --> {1,2,3},{1,2,3} <-- both have same "id"
-    char *triangleidchar;
-    triangleidchar = (char *) triangle_ids;
-    SDL_qsort(triangle_ids, triangle_count, sizeof(triangle_ids[0]*3), comp);
-    int ch;
+        uint32 ai = (*triangles)[i].x; // a,b,c,d > 0
+        uint32 bi = (*triangles)[i].y;
+        uint32 ci = (*triangles)[i].z;
+        uint32 di = (*triangles)[i].w;
+        uint32 i_arr[3] = {ai, bi, ci};
+        SDL_qsort(i_arr, 3, sizeof(i_arr[0]), comp32i);
+        triangle_ids[i] = (uint128) ((int128) di) + ((int128) i_arr[0])*((int128) 1<<32) + ((int128) i_arr[1])*((int128) 1<<64) + ((int128) i_arr[2])*((int128) 1<<96);
+    }
+    /*char bufferg[129];
+    i128_to_binary_string((int128) (*triangles)[63].x, bufferg);
+    SDL_Log("X I : %s", bufferg);
+    i128_to_binary_string((int128) (*triangles)[63].y, bufferg);
+    SDL_Log("Y I : %s", bufferg);
+    i128_to_binary_string((int128) (*triangles)[63].z, bufferg);
+    SDL_Log("Z I : %s", bufferg);
+    i128_to_binary_string((int128) (*triangles)[63].w, bufferg);
+    SDL_Log("W I : %s", bufferg);
+    i128_to_binary_string((int128) triangle_ids[63], bufferg);
+    SDL_Log("HMM I : %s", bufferg);*/
+
+    SDL_qsort(triangle_ids, triangle_count, sizeof(triangle_ids[0]), comp128ui); // x y z w (largest to smallest)
+    int32 ch = 0;
     while (ch < triangle_count - 1) {
-        int96 triangle_id_1;
-        int96 triangle_id_2;
-        triangle_id_1 = (int96) *(triangle_ids + ch);
-        triangle_id_2 = (int96) *(triangle_ids + ch + 1);
-        if (triangle_id_1 == triangle_id_2) {
-            if (triangle_id_1 >= 0) {
-                triangle_id_1 = -triangle_id_1 - 1;
-                //SDL_Log("%" SDL_PRIs32, i);
-                SDL_Log("i1;%" SDL_PRIs32 " - %" SDL_PRIs32, ch, triangle_id_1);
-            }
-            if (triangle_id_2 >= 0) {
-                triangle_id_2 = -triangle_id_2 - 1;
-                //SDL_Log("%" SDL_PRIs32, i);
-                SDL_Log("i2;%" SDL_PRIs32 " - %" SDL_PRIs32, ch, triangle_id_1);
-            }
+        uint32 *id_1 = (uint32*) (triangle_ids + (ch)); // smallest value = .w^(above)
+        uint32 *id_2 = (uint32*) (triangle_ids + (ch + 1));
+        uint128 triangle_1 = triangle_ids[ch];// (*id_1);
+        uint128 triangle_2 = triangle_ids[ch+1];
+        bool *mod1 = (bool*) &triangle_1;
+        bool *mod2 = (bool*) &triangle_2;
+        for (int i = 0; i < sizeof(uint32); i++) { // clear index value from triangle id's
+            *(mod1 + i) = 0;
+            *(mod2 + i) = 0;
+        }
+        /*if ((*id_1) == 63) {
+            i128_to_binary_string((int128) triangle_1, bufferg);
+            SDL_Log("11111 : %s", bufferg);
+            i128_to_binary_string((int128) triangle_2, bufferg);
+            SDL_Log("77777 : %s", bufferg);
+        }
+        if ((*id_2 == 63)) {
+            i128_to_binary_string((int128) triangle_2, bufferg);
+            SDL_Log("22222 : %s", bufferg);
+            i128_to_binary_string((int128) triangle_1, bufferg);
+            SDL_Log("88888 : %s", bufferg);
+        }*/
+        /*SDL_Log("id1 # : %d", (*id_1));
+        SDL_Log("id2 # : %d", (*id_2));
+        char buffer1[129];
+        char buffer2[129];
+        i128_to_binary_string((int128) triangle_1, buffer1);
+        //i128_to_binary_string((int128) triangle_id_1 * ((int128) 2<<32), buffer2);
+        i128_to_binary_string((int128) triangle_2, buffer2);
+        SDL_Log("ye I : %s", buffer1);
+        SDL_Log("no i : %s", buffer2);
+        SDL_Log("");*/
+        if (triangle_1 == triangle_2) {
+            (*triangles)[(*id_1)].w = -(*triangles)[(*id_1)].w - 1;
+            (*triangles)[(*id_2)].w = -(*triangles)[(*id_2)].w - 1;
             ch += 2;
         } else {
-            ch++;
+            ch += 1;
         }
     }
-    /*for (int i = 0; i < triangle_count - 1; i++) { // moving window
-        //SDL_Log("i - %" SDL_PRIu32 "; id - %" SDL_PRIu32, i, triangle_prime_ids[i]);
-        if ((triangle_prime_ids[i] == triangle_prime_ids[i+1]) || (triangle_prime_ids[i] == -triangle_prime_ids[i+1] - 1)) {
-            if (triangle_prime_ids[i] >= 0) {
-                triangle_prime_ids[i] = -triangle_prime_ids[i] - 1;
-                //SDL_Log("%" SDL_PRIs32, i);
-                SDL_Log("i1;%" SDL_PRIs32 " - %" SDL_PRIs32, i, triangle_prime_ids[i]);
-            }
-            if (triangle_prime_ids[i+1] >= 0) {
-                triangle_prime_ids[i+1] = -triangle_prime_ids[i+1] - 1;
-                //SDL_Log("%" SDL_PRIs32, i);
-                SDL_Log("i2;%" SDL_PRIs32 " - %" SDL_PRIs32, i, triangle_prime_ids[i]);
-            }
+    /*for (int i = 0; i < triangle_count; i++) {
+        int32 ai = (*triangles)[i].x;
+        int32 bi = (*triangles)[i].y;
+        int32 ci = (*triangles)[i].z;
+        int32 i_arr[3] = {ai, bi, ci};
+        SDL_qsort(i_arr, 3, sizeof(i_arr[0]), comp32i);
+        int128 triangle_id_i = (int128) ((int128) i_arr[0]) + ((int128) i_arr[1])*((int128) 1<<32) + ((int128) i_arr[2])*((int128) 1<<64);
+        int128 triangle_id_i_rm = -triangle_id_i - 1;
+        /*for (int j = 0; j < triangle_count; j++) { //(O(n^yikes))
+            if (j != i) {
+                int32 aj = (*triangles)[j].x;
+                int32 bj = (*triangles)[j].y;
+                int32 cj = (*triangles)[j].z;
+                int32 j_arr[3] = {aj, bj, cj};
+                SDL_qsort(j_arr, 3, sizeof(j_arr[0]), comp32i);
+                int128 triangle_id_j = (int128) ((int128) j_arr[0]) + ((int128) j_arr[1])*((int128) 1<<32) + ((int128) j_arr[2])*((int128) 1<<64);
+                if (((*triangles)[i].w >= 0) && (triangle_id_i == triangle_id_j)) {
+                    (*triangles)[i].w = -(*triangles)[i].w - 1;
+                }
+                /*if (triangle_ids[j] == triangle_id_i_rm) {
+                    (*triangles)[i].w = -(*triangles)[i].w - 1;
+                }*/
+            /*}
         }
     }*/
-    for (int i = 0; i < triangle_count; i++) {
-        int32 id = (*triangles)[i].w;
-        int32 a = (*triangles)[i].x;
-        int32 b = (*triangles)[i].y;
-        int32 c = (*triangles)[i].z;
-        sort3i32(&a, &b, &c);
-        //int48 triangle_prime_id = -a*primes.x + b*primes.y + c*primes.z;
-        //int128 triangle_id = (int128) a;
-        //triangle_id += (int128) b<<35;
-        //triangle_id += (int128) c<<67;
-        int32 triangle_id32[3];
-        triangle_id32[0] = a;
-        triangle_id32[1] = b;
-        triangle_id32[2] = c;
-        int96 triangle_id;
-        triangle_id = (int96) *(triangle_ids);
-        for (int j = 0; j < triangle_count; j++) { //(O(n^yikes))
-            int96 triangle_id_j = (int96) *(triangle_ids + j);
-            if ((-triangle_id - 1 == triangle_id_j) && (id >= 0)) {
-                (*triangles)[i].w = -i - 1;
-                SDL_Log("t: %" SDL_PRIs32, (*triangles)[i].w);
-            }
-        }
-    }
 }
 
 void rotate_128i(int32 vertex_count, vec32i3i128 **vert128, vec3i128 CoR, vec3f rotation_axis, float angle) {
@@ -463,5 +528,17 @@ void rotate_128i(int32 vertex_count, vec32i3i128 **vert128, vec3i128 CoR, vec3f 
         (*vert128)[i].z = (*vert128)[i].z + CoR.z;
     }
     hold_rendering = false;
+    return;
+}
+
+void copy_128mesh(int32 node_count, vec32i3i128 **source, vec32i3i128 **destination) {
+    SDL_free(*destination);
+    *destination = (vec32i3i128 *) SDL_malloc(sizeof(vec32i3i128) * node_count);
+    for (int i = 0; i < node_count; i++) {
+        (*destination)[i].w = (*source)[i].w;
+        (*destination)[i].x = (*source)[i].x;
+        (*destination)[i].y = (*source)[i].y;
+        (*destination)[i].z = (*source)[i].z;
+    }
     return;
 }

@@ -34,6 +34,33 @@ void AES_init_opengl() {
     /* Get function pointers for opengl_ext functions */
     glGenVertexArrays = (glGenVertexArrays_func) SDL_GL_GetProcAddress("glGenVertexArrays");
     glBindVertexArray = (glBindVertexArray_func) SDL_GL_GetProcAddress("glBindVertexArray");
+    #ifdef SDL_PLATFORM_WIN32
+    glGenBuffers = (glGenBuffers_func) SDL_GL_GetProcAddress("glGenBuffers");
+    glBindBuffer = (glBindBuffer_func) SDL_GL_GetProcAddress("glBindBuffer");
+    glBufferData = (glBufferData_func) SDL_GL_GetProcAddress("glBufferData");
+    glCreateShader = (glCreateShader_func) SDL_GL_GetProcAddress("glCreateShader");
+    glShaderSource = (glShaderSource_func) SDL_GL_GetProcAddress("glShaderSource");
+    glCompileShader = (glCompileShader_func) SDL_GL_GetProcAddress("glCompileShader");
+    glCreateProgram = (glCreateProgram_func) SDL_GL_GetProcAddress("glCreateProgram");
+    glAttachShader = (glAttachShader_func) SDL_GL_GetProcAddress("glAttachShader");
+    glLinkProgram = (glLinkProgram_func) SDL_GL_GetProcAddress("glLinkProgram");
+    glDeleteShader = (glDeleteShader_func) SDL_GL_GetProcAddress("glDeleteShader");
+    glVertexAttribPointer = (glVertexAttribPointer_func) SDL_GL_GetProcAddress("glVertexAttribPointer");
+    glEnableVertexAttribArray = (glEnableVertexAttribArray_func) SDL_GL_GetProcAddress("glEnableVertexAttribArray");
+    glUseProgram = (glUseProgram_func) SDL_GL_GetProcAddress("glUseProgram");
+    glGetProgramiv = (glGetProgramiv_func) SDL_GL_GetProcAddress("glGetProgramiv");
+    glGetProgramInfoLog = (glGetProgramInfoLog_func) SDL_GL_GetProcAddress("glGetProgramInfoLog");
+    glGetShaderiv = (glGetShaderiv_func) SDL_GL_GetProcAddress("glGetShaderiv");
+    glGetShaderInfoLog = (glGetShaderInfoLog_func) SDL_GL_GetProcAddress("glGetShaderInfoLog");
+    glUniformMatrix4fv = (glUniformMatrix4fv_func) SDL_GL_GetProcAddress("glUniformMatrix4fv");
+    glGetUniformLocation = (glGetUniformLocation_func) SDL_GL_GetProcAddress("glGetUniformLocation");
+    glGetnUniformfv = (glGetnUniformfv_func) SDL_GL_GetProcAddress("glGetnUniformfv");
+    glProgramUniformMatrix4fv = (glProgramUniformMatrix4fv_func) SDL_GL_GetProcAddress("glProgramUniformMatrix4fv");
+    glUniform4f = (glUniform4f_func) SDL_GL_GetProcAddress("glUniform4f");
+    glBufferSubData = (glBufferSubData_func) SDL_GL_GetProcAddress("glBufferSubData");
+    glUniform3f = (glUniform3f_func) SDL_GL_GetProcAddress("glUniform3f");
+    glActiveTexture_ = (glActiveTexture_func) SDL_GL_GetProcAddress("glActiveTexture");
+    #endif
 }
 
 void AES_generate_shaders() {
@@ -225,7 +252,7 @@ void perspective(float fovY, float aspect, float z_near, float z_far, float* mat
     matrix[15] = 0;
 }
 
-void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam, vec4f color) {
+void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam, vec4f color, int32 *skipped_cnt) {
     //SDL_Log("%" SDL_PRIu32, triangle_count);
     //SDL_Log("HYIj - %.3f", (float) (*vert128)[6].x);
     vec32i3i128 *vert128local = (vec32i3i128 *) SDL_malloc(sizeof(vec32i3i128) * vertex_count);
@@ -249,13 +276,17 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
         vec3d normald = generate_normald((*vertf)[(*triangles)[i].x], (*vertf)[(*triangles)[i].y], (*vertf)[(*triangles)[i].z]);
         vec3f normal = {(float)normald.x,(float) normald.y,(float) normald.z};
         float transparency_ = 1.0;
-        float temp_vertex_data[30] = {
-            (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v0
-            (*vertf)[(*triangles)[i].y].x, (*vertf)[(*triangles)[i].y].y, (*vertf)[(*triangles)[i].y].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v1
-            (*vertf)[(*triangles)[i].z].x, (*vertf)[(*triangles)[i].z].y, (*vertf)[(*triangles)[i].z].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z  // v2
-        };
-        for (int j = 0; j < 30; j++) {
-            vertex_data[j + 30 * i] = temp_vertex_data[j];
+        if ((*triangles)[i].w >= 0) {
+            float temp_vertex_data[30] = {
+                (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v0
+                (*vertf)[(*triangles)[i].y].x, (*vertf)[(*triangles)[i].y].y, (*vertf)[(*triangles)[i].y].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v1
+                (*vertf)[(*triangles)[i].z].x, (*vertf)[(*triangles)[i].z].y, (*vertf)[(*triangles)[i].z].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z  // v2
+            };
+            int32 size = sizeof(float) * 30;
+            int32 size_offset = sizeof(float) * (30 * (i - (*skipped_cnt)));
+            glBufferSubData(GL_ARRAY_BUFFER, size_offset, size, &temp_vertex_data[0]); // glMapBuffer
+        } else {
+            (*skipped_cnt)++;
         }
     }
 }
@@ -300,9 +331,9 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
             (*nodes)[(*cells)[i].x].x, (*nodes)[(*cells)[i].x].y, (*nodes)[(*cells)[i].x].z, 1.0,0.0,1.0,transparency_, normal3.x, normal3.y, normal3.z, // v1
             (*nodes)[(*cells)[i].b].x, (*nodes)[(*cells)[i].b].y, (*nodes)[(*cells)[i].b].z, 1.0,0.0,1.0,transparency_, normal3.x, normal3.y, normal3.z  // v0
         };
-        for (int j = 0; j < 120; j++) {
-            vertex_data[j + 120 * i] = temp_vertex_data[j];
-        }
+        int32 size = sizeof(float) * 120;
+        int32 size_offset = sizeof(float) * (120 * i);
+        glBufferSubData(GL_ARRAY_BUFFER, size_offset, size, &temp_vertex_data[0]); // glMapBuffer
     }
 }
 
@@ -321,8 +352,8 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
 }*/
 
 void render_body(int32 id, vec4f color, bool is_lit) {
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    //glBindVertexArray(vao);
+    //glBindBuffer(GL_ARRAY_BUFFER, vbo);
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     /*float vertices[] = {
         0 .5f,  0.5f,* -1.8f,   0.2f, 0.2f, 0.5f, 0.5f, // top right
@@ -334,25 +365,17 @@ void render_body(int32 id, vec4f color, bool is_lit) {
         0, 1, 3,  // first triangle
         1, 2, 3   // second triangle
     };*/
-    render_triangles(body[id].geo.vert_cnt, body[id].geo.tetra_cnt * 4, &body[id].geo.vertf, &body[id].geo.vert128, &body[id].geo.tri, body[id].geo.vert_index_cnt, root_cam, color); // enterprise
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 30 * body[id].geo.tri_cnt, &vertex_data[0], GL_DYNAMIC_DRAW); // glBufferSubData
-    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
+    int32 skipped_cnt = 0;
+    render_triangles(body[id].geo.vert_cnt, body[id].geo.tetra_cnt * 4, &body[id].geo.vertf, &body[id].geo.vert128, &body[id].geo.tri, body[id].geo.vert_index_cnt, root_cam, color, &skipped_cnt); // enterprise
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STREAM_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(3* sizeof(float)));
     glEnableVertexAttribArray(1);
-
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(7* sizeof(float)));
     glEnableVertexAttribArray(2);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    if (is_lit) {
-        glUseProgram(shader_program);
-    } else {
-        glUseProgram(unlit_shader);
-    }
+    //glBindBuffer(GL_ARRAY_BUFFER, 0);
+    //glBindVertexArray(0);
 
     const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
     float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1}; // 4x4 perspective matrix
@@ -368,6 +391,11 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     unsigned int proj_loc;
     unsigned int light_pos_loc;
     if (is_lit) {
+        glUseProgram(shader_program);
+    } else {
+        glUseProgram(unlit_shader);
+    }
+    if (is_lit) {
         view_loc = glGetUniformLocation(shader_program, "view");
         proj_loc = glGetUniformLocation(shader_program, "projection");
         light_pos_loc = glGetUniformLocation(shader_program, "light_pos");
@@ -379,10 +407,9 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_matrix[0][0]);
     glUniformMatrix4fv(proj_loc, 1, GL_TRUE, &projection_matrix[0]);
     //glUniform3f(light_pos_loc, 0, 0, 0);
-    glUniform3f(light_pos_loc, (float) body[0].CM.t.p.x - root_cam.x, (float) body[0].CM.t.p.y - root_cam.y, (float) body[0].CM.t.p.z - root_cam.z);
-    //glUniform3f(light_pos_loc, 0*SCALE - root_cam.x, 1e9*SCALE - root_cam.y, 0 - root_cam.z);
+    glUniform3f(light_pos_loc, (float) body[0].CM_prev.t.p.x - root_cam.x, (float) body[0].CM_prev.t.p.y - root_cam.y, (float) body[0].CM_prev.t.p.z - root_cam.z);
 
-    glBindVertexArray(vao);
+    //glBindVertexArray(vao);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glEnable(GL_BLEND);
@@ -390,11 +417,11 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glDrawArrays(GL_TRIANGLES, 0, body[id].geo.tetra_cnt*12);
+    glDrawArrays(GL_TRIANGLES, 0, body[id].geo.tetra_cnt*12 - skipped_cnt*3);
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
-    glBindVertexArray(0);
+    //glBindVertexArray(0);
     glUseProgram(0);
 
     //glDisableVertexAttribArray(0); // (?)
@@ -403,10 +430,6 @@ void render_body(int32 id, vec4f color, bool is_lit) {
 }
 
 void render3D(float window_width, float window_height, vec3f3i128 cam) {
-    glViewport(0, 0, root_window_width, root_window_height);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     vec4f color0 = {1.0,1.0,1.0,1.0};
     vec4f color1 = {0.7,0.7,0.7,1.0};
     vec4f color2 = {0.8,0.7,0.4,1.0};

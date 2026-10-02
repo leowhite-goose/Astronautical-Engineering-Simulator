@@ -26,12 +26,6 @@ SDL_AppResult AES_init() {
         return SDL_APP_FAILURE;
     }
 
-    // setting up physics thread/loop
-    physics_thread = SDL_CreateThread(physics_loop, "PhysicsThread", (void *)NULL);
-    if (!physics_thread) {
-        SDL_Log("Physics error: %s", SDL_GetError());
-    }
-
     // setting root window icon
     char *icon_path = NULL;
     SDL_asprintf(&icon_path, "%sdata/icon.png", SDL_GetBasePath());
@@ -58,8 +52,7 @@ SDL_AppResult AES_init() {
 
     char model_file_ENT_H[] = "meshes/TOS-Enterprise-G14.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml"//"meshes/20mm-Cube-4.xml"//"meshes/TOS-rip-FEMMeshGmsh002.xml"//"meshes/TOS-
     char model_file_ENT_L[] = "meshes/TOS-rip-FEMMeshGmsh002.xml";
-    char model_file_SPH_1[] = "meshes/Sphere_Diameter=1.xml";
-    char sphere_diameter1[] = "meshes/Sphere_Diameter=1.xml"; // use for stars, planets, etc.
+    char sphere_diameter1[] = "meshes/Sphere_Diameter=1_Low.xml"; // use for stars, planets, etc.
 
     char *body_files[] = {sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, sphere_diameter1, model_file_ENT_H, model_file_ENT_L};
 
@@ -204,13 +197,26 @@ SDL_AppResult AES_init() {
         vert128_translate(&body[11].geo.vert_cnt, &body[11].geo.vert128, translate);
         body[11].CM.t.p.x = translate.x; body[11].CM.t.p.y = translate.y; body[11].CM.t.p.z = translate.z;
 
-        //remove_shared_faces(body[0].geo.tri_cnt, &body[0].geo.tri);
+        for (int j = 0; j < 12; j++) {
+            remove_shared_faces(body[j].geo.tri_cnt, &body[j].geo.tri);
+        }
+
+    for (int i = 0; i < 12; i++) { // init buffers (for physics manipulation)
+        copy_128mesh(body[i].geo.vert_cnt, &body[i].geo.vert128, &body[i].geo.vert128_buffer);
+    }
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ebo);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 30 * 131072, NULL, GL_STREAM_DRAW); // up to 131072 triangles per drawcall = 3,932,160 bytes
 
-    vertex_data = SDL_malloc(sizeof(float) * 30 * 65536); // 65536 triangle max (per model); ~ 7.86 MB
+    // setting up physics thread/loop
+    physics_thread = SDL_CreateThread(physics_loop, "PhysicsThread", (void *)NULL);
+    if (!physics_thread) {
+        SDL_Log("Physics error: %s", SDL_GetError());
+    }
 
     return SDL_APP_CONTINUE;
 }

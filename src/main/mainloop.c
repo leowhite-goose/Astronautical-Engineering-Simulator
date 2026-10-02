@@ -118,16 +118,6 @@ SDL_AppResult AES_mainloop() {
         root_cam.z = -27*SCALE;
     }
 
-    bool move_to_body_10 = key_down(SDL_SCANCODE_0);
-    if (move_to_body_10) {
-        root_cam.x = body[10].CM.t.p.x + 0 * SCALE;
-        root_cam.y = body[10].CM.t.p.y + 0 * SCALE;
-        root_cam.z = body[10].CM.t.p.z + 100 * SCALE;
-        /*root_cam.x += body[3].CM.t.v.x * SCALE;
-         *   root_cam.y += body[3].CM.t.v.y * SCALE;
-         *   root_cam.z += body[3].CM.t.v.z * SCALE;*/
-    }
-
     char last_key[16];
     last_key_down(last_key, sizeof(last_key));
     if (SDL_strcmp(last_key, "No keys down")) {
@@ -270,6 +260,26 @@ SDL_AppResult AES_mainloop() {
     SDL_GL_SetSwapInterval(vsync);
 
     // 3D rendering
+    queue_render_data = true;
+    while (queue_render_data == true && physics_running == true) {
+        SDL_Delay(1);
+    }
+    queue_render_data = false; // should physics not be running/processing
+    bool move_to_body_10 = key_down(SDL_SCANCODE_0);
+    if (move_to_body_10) {
+        root_cam.x = body[10].CM_prev.t.p.x + 0 * SCALE;
+        root_cam.y = body[10].CM_prev.t.p.y + 0 * SCALE;
+        root_cam.z = body[10].CM_prev.t.p.z + 100 * SCALE;
+        /*root_cam.x = body[10].CM.t.p.x + 0 * SCALE;
+         *   root_cam.y = body[10].CM.t.p.y + 0 * SCALE;
+         *   root_cam.z = body[10].CM.t.p.z + 100 * SCALE;*/
+        /*root_cam.x += body[3].CM.t.v.x * SCALE;
+         *   root_cam.y += body[3].CM.t.v.y * SCALE;
+         *   root_cam.z += body[3].CM.t.v.z * SCALE;*/
+    }
+    glViewport(0, 0, root_window_width, root_window_height);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     render3D(root_window_width, root_window_height, root_cam);
 
     // 2D rendering (GUI overlay)
