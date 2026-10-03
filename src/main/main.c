@@ -15,6 +15,7 @@
 #ifndef SDL_PLATFORM_WIN32
 #include <SDL3/SDL_opengles2.h>
 #include <SDL3/SDL_opengles2_gl2ext.h>
+//#include <SDL3/SDL_egl.h>
 #endif
 
 #include "../common.c"
