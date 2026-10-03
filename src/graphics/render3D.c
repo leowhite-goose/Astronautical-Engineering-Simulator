@@ -3,25 +3,24 @@
 
 void AES_init_opengl() {
     // create root openGL context;
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1); // https://wiki.libsdl.org/SDL3/SDL_GLAttr
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     root_gl_context = SDL_GL_CreateContext(root_window);
     #ifdef __EMSCRIPTEN__
     SDL_SetWindowFillDocument(root_window, true);
     #endif
     SDL_GL_SetSwapInterval(1); // note
 
-    int opengl_major_version, opengl_minor_version, opengl_profile, depth_size;
+    int opengl_major_version, opengl_minor_version, opengl_profile, depth_size, MSAA_level;;
     #ifndef SDL_PLATFORM_WIN32
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0x0004); // https://wiki.libsdl.org/SDL3/SDL_GLProfile
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     #endif
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &opengl_major_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &opengl_minor_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &opengl_profile);
     SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depth_size);
+    SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &MSAA_level);
     SDL_Log("OpenGL version : %" SDL_PRIu32 ".%" SDL_PRIu32, opengl_major_version, opengl_minor_version); // of 3D openGL context
     if (opengl_profile == SDL_GL_CONTEXT_PROFILE_CORE) {
         SDL_Log("OpenGL profile : Core");
@@ -33,6 +32,7 @@ void AES_init_opengl() {
         SDL_Log("OpenGL profile : ES");
     }
     SDL_Log("Depth size (bits): %" SDL_PRIu32, depth_size);
+    SDL_Log("MSAA Level : %dx", MSAA_level);
     /* Get function pointers for opengl_ext functions */
     glGenVertexArrays = (glGenVertexArrays_func) SDL_GL_GetProcAddress("glGenVertexArrays");
     glBindVertexArray = (glBindVertexArray_func) SDL_GL_GetProcAddress("glBindVertexArray");
@@ -254,7 +254,7 @@ void perspective(float fovY, float aspect, float z_near, float z_far, float* mat
     matrix[15] = 0;
 }
 
-void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam, vec4f color, int32 *skipped_cnt) {
+void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **vertf, vec32i3i128 **vert128, vec4i32 **triangles, uint32 vert_index_cnt, vec3f3i128 cam, vec4f color, int32 *skipped_cnt, vec6i128 AABB, bool bounding_box) {
     //SDL_Log("%" SDL_PRIu32, triangle_count);
     //SDL_Log("HYIj - %.3f", (float) (*vert128)[6].x);
     vec32i3i128 *vert128local = (vec32i3i128 *) SDL_malloc(sizeof(vec32i3i128) * vertex_count);
@@ -290,6 +290,29 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
         } else {
             (*skipped_cnt)++;
         }
+    }
+    if (bounding_box) {
+        vec32i3i128 AA_BB[2] = {{0, AABB.a, AABB.b, AABB.c}, {1, AABB.x, AABB.y, AABB.z}};
+        vec32i3i128 *AABB_ptr = (vec32i3i128*) &AA_BB;
+        int32 aabb_cnt = 2;
+        vert128_translate(&aabb_cnt, &AABB_ptr, translate);
+        vec4f color_f = {1,1,1,1};
+        float temp_box_data[30 * 12] = {
+            (float) AA_BB[0].x, (float) AA_BB[0].y, (float) AA_BB[0].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0, // v0 --> lines
+            (float) AA_BB[1].x, (float) AA_BB[0].y, (float) AA_BB[0].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0, // v1
+            (float) AA_BB[0].x, (float) AA_BB[0].y, (float) AA_BB[0].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0, // v0
+            (float) AA_BB[0].x, (float) AA_BB[1].y, (float) AA_BB[0].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0, // v2
+            (float) AA_BB[0].x, (float) AA_BB[0].y, (float) AA_BB[0].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0, // v0
+            (float) AA_BB[0].x, (float) AA_BB[0].y, (float) AA_BB[1].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0, // v3
+
+            (float) AA_BB[1].x, (float) AA_BB[1].y, (float) AA_BB[1].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0,
+            (float) AA_BB[0].x, (float) AA_BB[1].y, (float) AA_BB[1].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0,
+            (float) AA_BB[1].x, (float) AA_BB[1].y, (float) AA_BB[1].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0,
+            (float) AA_BB[1].x, (float) AA_BB[0].y, (float) AA_BB[1].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0,
+            (float) AA_BB[1].x, (float) AA_BB[1].y, (float) AA_BB[1].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0,
+            (float) AA_BB[1].x, (float) AA_BB[1].y, (float) AA_BB[0].z , color_f.w, color_f.x, color_f.y, color_f.z, 0, 0, 0
+        };
+        glBufferSubData(GL_ARRAY_BUFFER, sizeof(float) * (30 * (triangle_count - (*skipped_cnt))), sizeof(float) * 30, &temp_box_data[0]);
     }
 }
 
@@ -353,7 +376,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     }
 }*/
 
-void render_body(int32 id, vec4f color, bool is_lit) {
+void render_body(int32 id, vec4f color, bool is_lit, bool bounding_box, bool occluded) {
     //glBindVertexArray(vao);
     //glBindBuffer(GL_ARRAY_BUFFER, vbo);
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
@@ -368,16 +391,13 @@ void render_body(int32 id, vec4f color, bool is_lit) {
         1, 2, 3   // second triangle
     };*/
     int32 skipped_cnt = 0;
-    render_triangles(body[id].geo.vert_cnt, body[id].geo.tetra_cnt * 4, &body[id].geo.vertf, &body[id].geo.vert128, &body[id].geo.tri, body[id].geo.vert_index_cnt, root_cam, color, &skipped_cnt); // enterprise
-    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STREAM_DRAW);
+    render_triangles(body[id].geo.vert_cnt, body[id].geo.tetra_cnt * 4, &body[id].geo.vertf, &body[id].geo.vert128, &body[id].geo.tri, body[id].geo.vert_index_cnt, root_cam, color, &skipped_cnt, body[id].CM.AABB, bounding_box); // enterprise
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(3* sizeof(float)));
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(float), (void*)(7* sizeof(float)));
     glEnableVertexAttribArray(2);
-    //glBindBuffer(GL_ARRAY_BUFFER, 0);
-    //glBindVertexArray(0);
 
     const float identity_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
     float projection_matrix[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1}; // 4x4 perspective matrix
@@ -411,8 +431,6 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     //glUniform3f(light_pos_loc, 0, 0, 0);
     glUniform3f(light_pos_loc, (float) body[0].CM_prev.t.p.x - root_cam.x, (float) body[0].CM_prev.t.p.y - root_cam.y, (float) body[0].CM_prev.t.p.z - root_cam.z);
 
-    //glBindVertexArray(vao);
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -420,15 +438,14 @@ void render_body(int32 id, vec4f color, bool is_lit) {
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glDrawArrays(GL_TRIANGLES, 0, body[id].geo.tetra_cnt*12 - skipped_cnt*3);
+    if (bounding_box == true) {
+        glUseProgram(unlit_shader);
+        glDrawArrays(GL_LINES, body[id].geo.tetra_cnt*12 - skipped_cnt*3, 6);
+    }
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
-    //glBindVertexArray(0);
     glUseProgram(0);
-
-    //glDisableVertexAttribArray(0); // (?)
-    //glDisableVertexAttribArray(1);
-    //glDisableVertexAttribArray(2);
 }
 
 void render3D(float window_width, float window_height, vec3f3i128 cam) {
@@ -444,18 +461,18 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     vec4f color9 = {0.5,0.6,0.9,1.0};
     vec4f color10 = {0.6,0.6,0.6,1.0};
     vec4f color11 = {0.6,0.6,0.6,1.0};
-    render_body(0,color0,0);
-    render_body(1,color1,1);
-    render_body(2,color2,1);
-    render_body(3,color3,1);
-    render_body(4,color4,1);
-    render_body(5,color5,1);
-    render_body(6,color6,1);
-    render_body(7,color7,1);
-    render_body(8,color8,1);
-    render_body(9,color9,1);
-    render_body(10,color10,1);
-    //render_body(11,color11,1);
+    render_body(0,color0,0,0,0);
+    render_body(1,color1,1,0,0);
+    render_body(2,color2,1,0,0);
+    render_body(3,color3,1,0,0);
+    render_body(4,color4,1,0,0);
+    render_body(5,color5,1,0,0);
+    render_body(6,color6,1,0,0);
+    render_body(7,color7,1,0,0);
+    render_body(8,color8,1,0,0);
+    render_body(9,color9,1,0,0);
+    render_body(10,color10,1,0,0);
+    render_body(11,color11,1,0,0);
 }
 
 #endif

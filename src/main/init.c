@@ -11,6 +11,8 @@ SDL_AppResult AES_init() {
         SDL_Log("Couldn't initialize SDL video: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1); // https://wiki.libsdl.org/SDL3/SDL_GLAttr
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 16);
     root_window = SDL_CreateWindow("AES - Main Window", root_window_width, root_window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (!root_window) {
         SDL_Log("Couldn't create window: %s", SDL_GetError());

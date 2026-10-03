@@ -37,6 +37,15 @@ static int SDLCALL physics_loop(void *data) {
             }
             //blue_overlap = triangle_triangle_collisionf(p1a, p1b, p1c, p2a, p2b, p2c); collision testing
 
+            for (int i = 0; i < 12; i++) {
+                vec6i128 AABB_ = generate_AABB(body[i].geo.vert_cnt, &body[i].geo.vert128);
+                body[i].CM.AABB.a = AABB_.a;
+                body[i].CM.AABB.b = AABB_.b;
+                body[i].CM.AABB.c = AABB_.c;
+                body[i].CM.AABB.x = AABB_.x;
+                body[i].CM.AABB.y = AABB_.y;
+                body[i].CM.AABB.z = AABB_.z;
+            }
             for (int i = 0; i < 11; i++) {
                 for (int j = 0; j < 10; j++) {
                     if (i != j) {

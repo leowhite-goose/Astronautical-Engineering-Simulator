@@ -542,3 +542,18 @@ void copy_128mesh(int32 node_count, vec32i3i128 **source, vec32i3i128 **destinat
     }
     return;
 }
+
+vec6i128 generate_AABB(int32 node_count, vec32i3i128 **vert128) { // change to use surface nodes (optimization)
+    vec6i128 AABB = {0,0,0,0,0,0};
+    for (int i = 0; i < node_count; i++) {
+        if ((*vert128)[i].x >= AABB.x) {AABB.x = (*vert128)[i].x;}
+        if ((*vert128)[i].x < AABB.a) {AABB.a = (*vert128)[i].x;}
+
+        if ((*vert128)[i].y >= AABB.y) {AABB.y = (*vert128)[i].y;}
+        if ((*vert128)[i].y < AABB.b) {AABB.b = (*vert128)[i].y;}
+
+        if ((*vert128)[i].z >= AABB.z) {AABB.z = (*vert128)[i].z;}
+        if ((*vert128)[i].z < AABB.c) {AABB.c = (*vert128)[i].z;}
+    }
+    return AABB;
+}

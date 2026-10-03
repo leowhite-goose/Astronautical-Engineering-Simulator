@@ -126,7 +126,7 @@ typedef struct vec4i128 {
     int128 z;
 } vec4i128;
 
-typedef struct vec6i128 {
+typedef struct vec6i128 {           // AABB
     int128 a;
     int128 b;
     int128 c;
@@ -156,7 +156,9 @@ struct point_particle { // all derived*
     float I;            // rotational inertia
     pos3i128 r;         // rotational pos, vel, acc
     float Q;            // charge
-    vec3i128 AABB[4];   // bounding box
+    vec6i128 AABB;      // bounding box
+    vec4i128 sphr;      // bounding sphere
+    bool occluded;      // for lighting
     char mat[];         // material (*not derived)
 };
 

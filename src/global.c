@@ -61,7 +61,7 @@ unsigned int unlit_shader;
 unsigned int tex_shader_program;
 
 double elapsed_simulated_time;
-float dt = 1; // 0.001
+float dt = 0.001; // 0.001; currently overridden in physics thread
 bool hold_rendering = false;
 int32 mod_body;
 bool queue_render_data = false;
