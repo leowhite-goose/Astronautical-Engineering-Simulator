@@ -435,14 +435,14 @@ void render_body(int32 id, vec4f color, bool is_lit, bool bounding_box, bool occ
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    //glEnable(GL_CULL_FACE);
+    //glCullFace(GL_BACK);
     glDrawArrays(GL_TRIANGLES, 0, body[id].geo.tetra_cnt*12 - skipped_cnt*3);
     if (bounding_box == true) {
         glUseProgram(unlit_shader);
         glDrawArrays(GL_LINES, body[id].geo.tetra_cnt*12 - skipped_cnt*3, 6);
     }
-    glDisable(GL_CULL_FACE);
+    //glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glUseProgram(0);

@@ -10256,8 +10256,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   var _glCreateShader = _emscripten_glCreateShader;
 
-  var _glCullFace = _emscripten_glCullFace;
-
   var _glDeleteShader = _emscripten_glDeleteShader;
 
   var _glDisable = _emscripten_glDisable;
@@ -11926,8 +11924,6 @@ function assignWasmExports(wasmExports) {
     glCreateProgram: _glCreateProgram,
     /** @export */
     glCreateShader: _glCreateShader,
-    /** @export */
-    glCullFace: _glCullFace,
     /** @export */
     glDeleteShader: _glDeleteShader,
     /** @export */
