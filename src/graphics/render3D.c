@@ -10,12 +10,6 @@ void AES_init_opengl() {
     SDL_GL_SetSwapInterval(1); // note
 
     int opengl_major_version, opengl_minor_version, opengl_profile, depth_size, MSAA_level;;
-    #ifndef SDL_PLATFORM_WIN32
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0x0004); // https://wiki.libsdl.org/SDL3/SDL_GLProfile
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    #endif
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &opengl_major_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &opengl_minor_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &opengl_profile);
@@ -435,14 +429,14 @@ void render_body(int32 id, vec4f color, bool is_lit, bool bounding_box, bool occ
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
-    //glCullFace(GL_BACK);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
     glDrawArrays(GL_TRIANGLES, 0, body[id].geo.tetra_cnt*12 - skipped_cnt*3);
     if (bounding_box == true) {
         glUseProgram(unlit_shader);
         glDrawArrays(GL_LINES, body[id].geo.tetra_cnt*12 - skipped_cnt*3, 6);
     }
-    //glDisable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glUseProgram(0);
