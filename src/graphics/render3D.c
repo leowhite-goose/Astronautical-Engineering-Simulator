@@ -13,9 +13,11 @@ void AES_init_opengl() {
     SDL_GL_SetSwapInterval(1); // note
 
     int opengl_major_version, opengl_minor_version, opengl_profile, depth_size;
+    #ifndef SDL_PLATFORM_WIN32
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0x0004); // https://wiki.libsdl.org/SDL3/SDL_GLProfile
+    #endif
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &opengl_major_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &opengl_minor_version);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &opengl_profile);
