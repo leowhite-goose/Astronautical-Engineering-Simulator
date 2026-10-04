@@ -466,7 +466,7 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     render_body(8,color8,1,0,0);
     render_body(9,color9,1,0,0);
     render_body(10,color10,1,0,0);
-    render_body(11,color11,1,0,0);
+    //render_body(11,color11,1,0,0);
 }
 
 #endif
