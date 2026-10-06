@@ -283,7 +283,9 @@ SDL_AppResult AES_mainloop() {
     render3D(root_window_width, root_window_height, root_cam);
 
     // 2D rendering (GUI overlay)
-    onscreen_overlay(cam_speed, pan_sensitivity, last_fps, last_tps, root_window_width, root_window_height);
+    if (!key_toggle(SDL_SCANCODE_G)) {
+        onscreen_overlay(cam_speed, pan_sensitivity, last_fps, last_tps, root_window_width, root_window_height);
+    }
 
     glFlush(); // note
     SDL_GL_SwapWindow(root_window);

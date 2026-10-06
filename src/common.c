@@ -159,6 +159,7 @@ struct point_particle { // all derived*
     vec6i128 AABB;      // bounding box
     vec4i128 sphr;      // bounding sphere
     bool occluded;      // for lighting
+    vec3i128 *trajectory; // e.g., for orbits
     char mat[];         // material (*not derived)
 };
 

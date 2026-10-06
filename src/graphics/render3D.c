@@ -308,6 +308,9 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
         };
         glBufferSubData(GL_ARRAY_BUFFER, sizeof(float) * (30 * (triangle_count - (*skipped_cnt))), sizeof(float) * 30, &temp_box_data[0]);
     }
+    /*if (trajectory) {
+
+    }*/
 }
 
 void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128, uint32 vertex_count, int32 cell_count, bool debug, vec3f3i128 cam) {

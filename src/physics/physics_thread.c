@@ -86,6 +86,12 @@ static int SDLCALL physics_loop(void *data) {
                 root_cam_physics.y += body[10].CM.t.v.y * SCALE * dt;
                 root_cam_physics.z += body[10].CM.t.v.z * SCALE * dt;
             }
+            for (int i = 1; i < 128; i++) {
+                body[10].CM.trajectory[i] = body[10].CM.trajectory[i-1]; // shift up to free first index
+            }
+            body[10].CM.trajectory[0].x = body[10].CM.t.p.x;
+            body[10].CM.trajectory[0].y = body[10].CM.t.p.y;
+            body[10].CM.trajectory[0].z = body[10].CM.t.p.z;
             static vec3f bearing = {(270*SDL_PI_F/180),(90*SDL_PI_F/180),0};
             static vec3f bearing_prev = {(270*SDL_PI_F/180),(90*SDL_PI_F/180),0};
             int2 L_R = key_down(SDL_SCANCODE_RIGHT) - key_down(SDL_SCANCODE_LEFT);
@@ -112,7 +118,7 @@ static int SDLCALL physics_loop(void *data) {
                 mod_body = -1;
             }
 
-            if (queue_render_data == true) {
+            if (queue_render_data == true) { // if render thread wants world data
                 for (int i = 0; i < 12; i++) {
                     copy_128mesh(body[i].geo.vert_cnt, &body[i].geo.vert128_buffer, &body[i].geo.vert128);
                     body[i].CM_prev.t.v.x = body[i].CM.t.v.x;
@@ -128,7 +134,7 @@ static int SDLCALL physics_loop(void *data) {
                 root_cam_physics.x = 0;
                 root_cam_physics.y = 0;
                 root_cam_physics.z = 0;
-                queue_render_data = false;
+                queue_render_data = false; // tell render thread world data is copied over for its use
             }
 
             elapsed_simulated_time += dt;

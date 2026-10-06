@@ -199,6 +199,7 @@ SDL_AppResult AES_init() {
         vertd_i_to_vert128_scaled(&body[10].geo.vert_cnt, &body[10].geo.vertd, &body[10].geo.vert128, SCALE);
         body[10].CM.t.p.x = translate.x; body[10].CM.t.p.y = translate.y; body[10].CM.t.p.z = translate.z;
         vert128_translate(&body[10].geo.vert_cnt, &body[10].geo.vert128, translate);
+        body[10].CM.trajectory = (vec3i128*) SDL_malloc(sizeof(vec3i128) * 128);
 
         translate.x = 200*SCALE; translate.y = 0; translate.z = 0;
         vertd_i_to_vert128_scaled(&body[11].geo.vert_cnt, &body[11].geo.vertd, &body[11].geo.vert128, SCALE);

@@ -6720,12 +6720,27 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       return ctx.getSupportedExtensions()?.filter(ext => supportedExtensions.includes(ext)) ?? [];
     };
   
+  var registerPreMainLoop = (f) => {
+      // Does nothing unless $MainLoop is included/used.
+      typeof MainLoop != 'undefined' && MainLoop.preMainLoop.push(f);
+    };
+  
+  
+  var webglBufferSubData = (target, offset, size, data, src = HEAPU8) => {
+      if (true) {
+        size && GLctx.bufferSubData(target, offset, src, data, size);
+        return;
+      }
+    };
+  
   
   
   
   var GL = {
   counter:1,
   buffers:[],
+  mappedBuffers:{
+  },
   programs:[],
   framebuffers:[],
   renderbuffers:[],
@@ -6740,6 +6755,8 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   samplers:[],
   transformFeedbacks:[],
   syncs:[],
+  byteSizeByTypeRoot:5120,
+  byteSizeByType:[1,1,2,2,4,4,4,2,3,4,8],
   stringCache:{
   },
   stringiCache:{
@@ -6755,6 +6772,11 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         var ret = GL.counter++;
         for (var i = table.length; i < ret; i++) {
           table[i] = null;
+        }
+        // Skip over any non-null elements that might have been created by
+        // glBindBuffer.
+        while (table[ret]) {
+          ret = GL.counter++;
         }
         return ret;
       },
@@ -6772,6 +6794,103 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
           HEAP32[(((buffers)+(i*4))>>2)] = id;
         }
       },
+  MAX_TEMP_BUFFER_SIZE:2097152,
+  numTempVertexBuffersPerSize:64,
+  log2ceilLookup:(i) => 32 - Math.clz32(i ? i - 1 : 0),
+  generateTempBuffers:(quads, context) => {
+        var largestIndex = GL.log2ceilLookup(GL.MAX_TEMP_BUFFER_SIZE);
+        context.tempVertexBufferCounters1 = [];
+        context.tempVertexBufferCounters2 = [];
+        context.tempVertexBufferCounters1.length = context.tempVertexBufferCounters2.length = largestIndex+1;
+        context.tempVertexBuffers1 = [];
+        context.tempVertexBuffers2 = [];
+        context.tempVertexBuffers1.length = context.tempVertexBuffers2.length = largestIndex+1;
+        context.tempIndexBuffers = [];
+        context.tempIndexBuffers.length = largestIndex+1;
+        for (var i = 0; i <= largestIndex; ++i) {
+          context.tempIndexBuffers[i] = null; // Created on-demand
+          context.tempVertexBufferCounters1[i] = context.tempVertexBufferCounters2[i] = 0;
+          var ringbufferLength = GL.numTempVertexBuffersPerSize;
+          context.tempVertexBuffers1[i] = [];
+          context.tempVertexBuffers2[i] = [];
+          var ringbuffer1 = context.tempVertexBuffers1[i];
+          var ringbuffer2 = context.tempVertexBuffers2[i];
+          ringbuffer1.length = ringbuffer2.length = ringbufferLength;
+          for (var j = 0; j < ringbufferLength; ++j) {
+            ringbuffer1[j] = ringbuffer2[j] = null; // Created on-demand
+          }
+        }
+  
+        if (quads) {
+          // GL_QUAD indexes can be precalculated
+          context.tempQuadIndexBuffer = GLctx.createBuffer();
+          context.GLctx.bindBuffer(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, context.tempQuadIndexBuffer);
+          var numIndexes = GL.MAX_TEMP_BUFFER_SIZE >> 1;
+          var quadIndexes = new Uint16Array(numIndexes);
+          var i = 0, v = 0;
+          while (1) {
+            quadIndexes[i++] = v;
+            if (i >= numIndexes) break;
+            quadIndexes[i++] = v+1;
+            if (i >= numIndexes) break;
+            quadIndexes[i++] = v+2;
+            if (i >= numIndexes) break;
+            quadIndexes[i++] = v;
+            if (i >= numIndexes) break;
+            quadIndexes[i++] = v+2;
+            if (i >= numIndexes) break;
+            quadIndexes[i++] = v+3;
+            if (i >= numIndexes) break;
+            v += 4;
+          }
+          context.GLctx.bufferData(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, quadIndexes, 0x88E4 /*GL_STATIC_DRAW*/);
+          context.GLctx.bindBuffer(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, null);
+        }
+      },
+  getTempVertexBuffer:(sizeBytes) => {
+        var idx = GL.log2ceilLookup(sizeBytes);
+        var ringbuffer = GL.currentContext.tempVertexBuffers1[idx];
+        var nextFreeBufferIndex = GL.currentContext.tempVertexBufferCounters1[idx];
+        GL.currentContext.tempVertexBufferCounters1[idx] = (GL.currentContext.tempVertexBufferCounters1[idx]+1) & (GL.numTempVertexBuffersPerSize-1);
+        var vbo = ringbuffer[nextFreeBufferIndex];
+        if (vbo) {
+          return vbo;
+        }
+        var prevVBO = GLctx.getParameter(0x8894 /*GL_ARRAY_BUFFER_BINDING*/);
+        ringbuffer[nextFreeBufferIndex] = GLctx.createBuffer();
+        GLctx.bindBuffer(0x8892 /*GL_ARRAY_BUFFER*/, ringbuffer[nextFreeBufferIndex]);
+        GLctx.bufferData(0x8892 /*GL_ARRAY_BUFFER*/, 1 << idx, 0x88E8 /*GL_DYNAMIC_DRAW*/);
+        GLctx.bindBuffer(0x8892 /*GL_ARRAY_BUFFER*/, prevVBO);
+        return ringbuffer[nextFreeBufferIndex];
+      },
+  getTempIndexBuffer:(sizeBytes) => {
+        var idx = GL.log2ceilLookup(sizeBytes);
+        var ibo = GL.currentContext.tempIndexBuffers[idx];
+        if (ibo) {
+          return ibo;
+        }
+        var prevIBO = GLctx.getParameter(0x8895 /*ELEMENT_ARRAY_BUFFER_BINDING*/);
+        GL.currentContext.tempIndexBuffers[idx] = GLctx.createBuffer();
+        GLctx.bindBuffer(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, GL.currentContext.tempIndexBuffers[idx]);
+        GLctx.bufferData(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, 1 << idx, 0x88E8 /*GL_DYNAMIC_DRAW*/);
+        GLctx.bindBuffer(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, prevIBO);
+        return GL.currentContext.tempIndexBuffers[idx];
+      },
+  newRenderingFrameStarted:() => {
+        if (!GL.currentContext) {
+          return;
+        }
+        var vb = GL.currentContext.tempVertexBuffers1;
+        GL.currentContext.tempVertexBuffers1 = GL.currentContext.tempVertexBuffers2;
+        GL.currentContext.tempVertexBuffers2 = vb;
+        vb = GL.currentContext.tempVertexBufferCounters1;
+        GL.currentContext.tempVertexBufferCounters1 = GL.currentContext.tempVertexBufferCounters2;
+        GL.currentContext.tempVertexBufferCounters2 = vb;
+        var largestIndex = GL.log2ceilLookup(GL.MAX_TEMP_BUFFER_SIZE);
+        for (var i = 0; i <= largestIndex; ++i) {
+          GL.currentContext.tempVertexBufferCounters1[i] = 0;
+        }
+      },
   getSource:(shader, count, string, length) => {
         var source = '';
         for (var i = 0; i < count; ++i) {
@@ -6779,6 +6898,39 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
           source += UTF8ToString(HEAPU32[(((string)+(i*4))>>2)], len);
         }
         return source;
+      },
+  calcBufLength:(size, type, stride, count) => {
+        if (stride > 0) {
+          return count * stride;  // XXXvlad this is not exactly correct I don't think
+        }
+        var typeSize = GL.byteSizeByType[type - GL.byteSizeByTypeRoot];
+        return size * typeSize * count;
+      },
+  usedTempBuffers:[],
+  preDrawHandleClientVertexAttribBindings:(count) => {
+        GL.resetBufferBinding = false;
+  
+        // TODO: initial pass to detect ranges we need to upload, might not need
+        // an upload per attrib
+        for (var i = 0; i < GL.currentContext.maxVertexAttribs; ++i) {
+          var cb = GL.currentContext.clientBuffers[i];
+          if (!cb.clientside || !cb.enabled) continue;
+  
+          assert(count || !GLctx.currentElementArrayBufferBinding, 'must use array buffers when using element buffer');
+  
+          GL.resetBufferBinding = true;
+  
+          var size = GL.calcBufLength(cb.size, cb.type, cb.stride, count);
+          var buf = GL.getTempVertexBuffer(size);
+          GLctx.bindBuffer(0x8892 /*GL_ARRAY_BUFFER*/, buf);
+          webglBufferSubData(0x8892 /*GL_ARRAY_BUFFER*/, 0, size, cb.ptr);
+          cb.vertexAttribPointerAdaptor.call(GLctx, i, cb.size, cb.type, cb.normalized, cb.stride, 0);
+        }
+      },
+  postDrawHandleClientVertexAttribBindings:() => {
+        if (GL.resetBufferBinding) {
+          GLctx.bindBuffer(0x8892 /*GL_ARRAY_BUFFER*/, GL.buffers[GLctx.currentArrayBufferBinding]);
+        }
       },
   createContext:(/** @type {HTMLCanvasElement} */ canvas, webGLContextAttributes) => {
   
@@ -6829,6 +6981,23 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         if (typeof webGLContextAttributes.enableExtensionsByDefault == 'undefined' || webGLContextAttributes.enableExtensionsByDefault) {
           GL.initExtensions(context);
         }
+  
+        context.maxVertexAttribs = context.GLctx.getParameter(0x8869 /*GL_MAX_VERTEX_ATTRIBS*/);
+        context.clientBuffers = [];
+        for (var i = 0; i < context.maxVertexAttribs; i++) {
+          context.clientBuffers[i] = {
+            enabled: false,
+            clientside: false,
+            size: 0,
+            type: 0,
+            normalized: 0,
+            stride: 0,
+            ptr: 0,
+            vertexAttribPointerAdaptor: null,
+          };
+        }
+  
+        GL.generateTempBuffers(false, context);
   
         return handle;
       },
@@ -6929,6 +7098,19 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
     };
 
   var _emscripten_glBindBuffer = (target, buffer) => {
+      // Calling glBindBuffer with an unknown buffer will implicitly create a
+      // new one.  Here we bypass `GL.counter` and directly using the ID passed
+      // in.
+      if (buffer && !GL.buffers[buffer]) {
+        var b = GLctx.createBuffer();
+        b.name = buffer;
+        GL.buffers[buffer] = b;
+      }
+      if (target == 0x8892 /*GL_ARRAY_BUFFER*/) {
+        GLctx.currentArrayBufferBinding = buffer;
+      } else if (target == 0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/) {
+        GLctx.currentElementArrayBufferBinding = buffer;
+      }
   
       if (target == 0x88EB /*GL_PIXEL_PACK_BUFFER*/) {
         // In WebGL 2 glReadPixels entry point, we need to use a different WebGL 2
@@ -6980,6 +7162,8 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   var _emscripten_glBindVertexArray = (vao) => {
       GLctx.bindVertexArray(GL.vaos[vao]);
+      var ibo = GLctx.getParameter(0x8895 /*ELEMENT_ARRAY_BUFFER_BINDING*/);
+      GLctx.currentElementArrayBufferBinding = ibo ? (ibo.name | 0) : 0;
     };
 
   
@@ -7015,13 +7199,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       }
     };
 
-  
-  var webglBufferSubData = (target, offset, size, data, src = HEAPU8) => {
-      if (true) {
-        size && GLctx.bufferSubData(target, offset, src, data, size);
-        return;
-      }
-    };
   
   var _emscripten_glBufferSubData = (target, offset, size, data) => webglBufferSubData(target, offset, size, data);
 
@@ -7164,6 +7341,8 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         buffer.name = 0;
         GL.buffers[id] = null;
   
+        if (id == GLctx.currentArrayBufferBinding) GLctx.currentArrayBufferBinding = 0;
+        if (id == GLctx.currentElementArrayBufferBinding) GLctx.currentElementArrayBufferBinding = 0;
         if (id == GLctx.currentPixelPackBufferBinding) GLctx.currentPixelPackBufferBinding = 0;
         if (id == GLctx.currentPixelUnpackBufferBinding) GLctx.currentPixelUnpackBufferBinding = 0;
       }
@@ -7317,13 +7496,18 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   var _emscripten_glDisable = (x0) => GLctx.disable(x0);
 
   var _emscripten_glDisableVertexAttribArray = (index) => {
+      var cb = GL.currentContext.clientBuffers[index];
+      cb.enabled = false;
       GLctx.disableVertexAttribArray(index);
     };
 
   var _emscripten_glDrawArrays = (mode, first, count) => {
+      // bind any client-side buffers
+      GL.preDrawHandleClientVertexAttribBindings(first + count);
   
       GLctx.drawArrays(mode, first, count);
   
+      GL.postDrawHandleClientVertexAttribBindings();
     };
 
   var _emscripten_glDrawArraysInstanced = (mode, first, count, primcount) => {
@@ -7364,10 +7548,51 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   var _emscripten_glDrawBuffersWEBGL = _glDrawBuffers;
 
   
+  
   var _emscripten_glDrawElements = (mode, count, type, indices) => {
+      var buf;
+      var vertexes = 0;
+      if (!GLctx.currentElementArrayBufferBinding) {
+        var size = GL.calcBufLength(1, type, 0, count);
+        buf = GL.getTempIndexBuffer(size);
+        GLctx.bindBuffer(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, buf);
+        webglBufferSubData(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, 0, size, indices);
+  
+        // Calculating vertex count if shader's attribute data is on client side
+        if (count > 0) {
+          for (var i = 0; i < GL.currentContext.maxVertexAttribs; ++i) {
+            var cb = GL.currentContext.clientBuffers[i];
+            if (cb.clientside && cb.enabled) {
+              let arrayClass;
+              switch(type) {
+                case 0x1401 /* GL_UNSIGNED_BYTE */: arrayClass = Uint8Array; break;
+                case 0x1403 /* GL_UNSIGNED_SHORT */: arrayClass = Uint16Array; break;
+                case 0x1405 /* GL_UNSIGNED_INT */: arrayClass = Uint32Array; break;
+                default:
+                  GL.recordError(0x502 /* GL_INVALID_OPERATION */);
+                  return;
+              }
+  
+              vertexes = new arrayClass(HEAPU8.buffer, indices, count).reduce((max, current) => Math.max(max, current)) + 1;
+              break;
+            }
+          }
+        }
+  
+        // the index is now 0
+        indices = 0;
+      }
+  
+      // bind any client-side buffers
+      GL.preDrawHandleClientVertexAttribBindings(vertexes);
   
       GLctx.drawElements(mode, count, type, indices);
   
+      GL.postDrawHandleClientVertexAttribBindings(count);
+  
+      if (!GLctx.currentElementArrayBufferBinding) {
+        GLctx.bindBuffer(0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/, null);
+      }
     };
 
   var _emscripten_glDrawElementsInstanced = (mode, count, type, indices, primcount) => {
@@ -7399,6 +7624,8 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   var _emscripten_glEnable = (x0) => GLctx.enable(x0);
 
   var _emscripten_glEnableVertexAttribArray = (index) => {
+      var cb = GL.currentContext.clientBuffers[index];
+      cb.enabled = true;
       GLctx.enableVertexAttribArray(index);
     };
 
@@ -7424,6 +7651,69 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   var _emscripten_glFinish = () => GLctx.finish();
 
   var _emscripten_glFlush = () => GLctx.flush();
+
+  var emscriptenWebGLGetBufferBinding = (target) => {
+      switch (target) {
+        case 0x8892 /*GL_ARRAY_BUFFER*/: target = 0x8894 /*GL_ARRAY_BUFFER_BINDING*/; break;
+        case 0x8893 /*GL_ELEMENT_ARRAY_BUFFER*/: target = 0x8895 /*GL_ELEMENT_ARRAY_BUFFER_BINDING*/; break;
+        case 0x88EB /*GL_PIXEL_PACK_BUFFER*/: target = 0x88ED /*GL_PIXEL_PACK_BUFFER_BINDING*/; break;
+        case 0x88EC /*GL_PIXEL_UNPACK_BUFFER*/: target = 0x88EF /*GL_PIXEL_UNPACK_BUFFER_BINDING*/; break;
+        case 0x8C8E /*GL_TRANSFORM_FEEDBACK_BUFFER*/: target = 0x8C8F /*GL_TRANSFORM_FEEDBACK_BUFFER_BINDING*/; break;
+        case 0x8F36 /*GL_COPY_READ_BUFFER*/: target = 0x8F36 /*GL_COPY_READ_BUFFER_BINDING*/; break;
+        case 0x8F37 /*GL_COPY_WRITE_BUFFER*/: target = 0x8F37 /*GL_COPY_WRITE_BUFFER_BINDING*/; break;
+        case 0x8A11 /*GL_UNIFORM_BUFFER*/: target = 0x8A28 /*GL_UNIFORM_BUFFER_BINDING*/; break;
+        // In default case, fall through and assume passed one of the _BINDING enums directly.
+      }
+      var buffer = GLctx.getParameter(target);
+      if (buffer) return buffer.name|0;
+      else return 0;
+    };
+  
+  var emscriptenWebGLValidateMapBufferTarget = (target) => {
+      switch (target) {
+        case 0x8892: // GL_ARRAY_BUFFER
+        case 0x8893: // GL_ELEMENT_ARRAY_BUFFER
+        case 0x8F36: // GL_COPY_READ_BUFFER
+        case 0x8F37: // GL_COPY_WRITE_BUFFER
+        case 0x88EB: // GL_PIXEL_PACK_BUFFER
+        case 0x88EC: // GL_PIXEL_UNPACK_BUFFER
+        case 0x8C2A: // GL_TEXTURE_BUFFER
+        case 0x8C8E: // GL_TRANSFORM_FEEDBACK_BUFFER
+        case 0x8A11: // GL_UNIFORM_BUFFER
+          return true;
+        default:
+          return false;
+      }
+    };
+  
+  
+  var _emscripten_glFlushMappedBufferRange = (target, offset, length) => {
+      if (!emscriptenWebGLValidateMapBufferTarget(target)) {
+        GL.recordError(0x500/*GL_INVALID_ENUM*/);
+        err('GL_INVALID_ENUM in glFlushMappedBufferRange');
+        return;
+      }
+  
+      var mapping = GL.mappedBuffers[emscriptenWebGLGetBufferBinding(target)];
+      if (!mapping) {
+        GL.recordError(0x502 /* GL_INVALID_OPERATION */);
+        err('buffer was never mapped in glFlushMappedBufferRange');
+        return;
+      }
+  
+      if (!(mapping.access & 0x10)) {
+        GL.recordError(0x502 /* GL_INVALID_OPERATION */);
+        err('buffer was not mapped with GL_MAP_FLUSH_EXPLICIT_BIT in glFlushMappedBufferRange');
+        return;
+      }
+      if (offset < 0 || length < 0 || offset + length > mapping.length) {
+        GL.recordError(0x501 /* GL_INVALID_VALUE */);
+        err('invalid range in glFlushMappedBufferRange');
+        return;
+      }
+  
+      webglBufferSubData(target, mapping.offset, length, mapping.mem + offset);
+    };
 
   var _emscripten_glFramebufferRenderbuffer = (target, attachment, renderbuffertarget, renderbuffer) => {
       GLctx.framebufferRenderbuffer(target, attachment, renderbuffertarget,
@@ -7792,6 +8082,22 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         return;
       }
       HEAP32[((data)>>2)] = GLctx.getBufferParameter(target, value);
+    };
+
+  
+  
+  var _emscripten_glGetBufferPointerv = (target, pname, params) => {
+      if (pname == 0x88BD/*GL_BUFFER_MAP_POINTER*/) {
+        var ptr = 0;
+        var mappedBuffer = GL.mappedBuffers[emscriptenWebGLGetBufferBinding(target)];
+        if (mappedBuffer) {
+          ptr = mappedBuffer.mem;
+        }
+        HEAP32[((params)>>2)] = ptr;
+      } else {
+        GL.recordError(0x500/*GL_INVALID_ENUM*/);
+        err('GL_INVALID_ENUM in glGetBufferPointerv');
+      }
     };
 
   var _emscripten_glGetError = () => {
@@ -8483,6 +8789,9 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         GL.recordError(0x501 /* GL_INVALID_VALUE */);
         return;
       }
+      if (GL.currentContext.clientBuffers[index].enabled) {
+        err('glGetVertexAttrib*v on client-side array: not supported, bad data returned');
+      }
       var data = GLctx.getVertexAttrib(index, pname);
       if (pname == 0x889F/*VERTEX_ATTRIB_ARRAY_BUFFER_BINDING*/) {
         HEAP32[((params)>>2)] = data && data["name"];
@@ -8520,6 +8829,9 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         // null, issue a GL error to notify user about it.
         GL.recordError(0x501 /* GL_INVALID_VALUE */);
         return;
+      }
+      if (GL.currentContext.clientBuffers[index].enabled) {
+        err('glGetVertexAttribPointer on client-side array: not supported, bad data returned');
       }
       HEAP32[((pointer)>>2)] = GLctx.getVertexAttribOffset(index, pname);
     };
@@ -8642,6 +8954,42 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       program.uniformLocsById = 0; // Mark as null-like so that glGetUniformLocation() knows to populate this again.
       program.uniformSizeAndIdsByName = {};
   
+    };
+
+  
+  
+  
+  var _emscripten_glMapBufferRange = (target, offset, length, access) => {
+      if ((access & (0x1/*GL_MAP_READ_BIT*/ | 0x20/*GL_MAP_UNSYNCHRONIZED_BIT*/)) != 0) {
+        err('glMapBufferRange access does not support MAP_READ or MAP_UNSYNCHRONIZED');
+        return 0;
+      }
+  
+      if ((access & 0x2/*GL_MAP_WRITE_BIT*/) == 0) {
+        err('glMapBufferRange access must include MAP_WRITE');
+        return 0;
+      }
+  
+      if ((access & (0x4/*GL_MAP_INVALIDATE_BUFFER_BIT*/ | 0x8/*GL_MAP_INVALIDATE_RANGE_BIT*/)) == 0) {
+        err('glMapBufferRange access must include INVALIDATE_BUFFER or INVALIDATE_RANGE');
+        return 0;
+      }
+  
+      if (!emscriptenWebGLValidateMapBufferTarget(target)) {
+        GL.recordError(0x500/*GL_INVALID_ENUM*/);
+        err('GL_INVALID_ENUM in glMapBufferRange');
+        return 0;
+      }
+  
+      var mem = _malloc(length), binding = emscriptenWebGLGetBufferBinding(target);
+      if (!mem) return 0;
+  
+      binding = GL.mappedBuffers[binding] ??= {};
+      binding.offset = offset;
+      binding.length = length;
+      binding.mem = mem;
+      binding.access = access;
+      return mem;
     };
 
   var _emscripten_glPauseTransformFeedback = () => GLctx.pauseTransformFeedback();
@@ -9115,6 +9463,33 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       count && GLctx.uniformMatrix4x3fv(webglGetUniformLocation(location), !!transpose, HEAPF32, ((value)>>2), count*12);
     };
 
+  
+  
+  
+  var _emscripten_glUnmapBuffer = (target) => {
+      if (!emscriptenWebGLValidateMapBufferTarget(target)) {
+        GL.recordError(0x500/*GL_INVALID_ENUM*/);
+        err('GL_INVALID_ENUM in glUnmapBuffer');
+        return 0;
+      }
+  
+      var buffer = emscriptenWebGLGetBufferBinding(target);
+      var mapping = GL.mappedBuffers[buffer];
+      if (!mapping || !mapping.mem) {
+        GL.recordError(0x502 /* GL_INVALID_OPERATION */);
+        err('buffer was never mapped in glUnmapBuffer');
+        return 0;
+      }
+  
+      if (!(mapping.access & 0x10)) { /* GL_MAP_FLUSH_EXPLICIT_BIT */
+        webglBufferSubData(target, mapping.offset, mapping.length, mapping.mem);
+      }
+  
+      _free(mapping.mem);
+      mapping.mem = 0;
+      return 1;
+    };
+
   var _emscripten_glUseProgram = (program) => {
       program = GL.programs[program];
       GLctx.useProgram(program);
@@ -9189,10 +9564,38 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
     };
 
   var _emscripten_glVertexAttribIPointer = (index, size, type, stride, ptr) => {
+      var cb = GL.currentContext.clientBuffers[index];
+      if (!GLctx.currentArrayBufferBinding) {
+        cb.size = size;
+        cb.type = type;
+        cb.normalized = false;
+        cb.stride = stride;
+        cb.ptr = ptr;
+        cb.clientside = true;
+        cb.vertexAttribPointerAdaptor = /** @this {WebGLRenderingContext} */ function(index, size, type, normalized, stride, ptr) {
+          this.vertexAttribIPointer(index, size, type, stride, ptr);
+        };
+        return;
+      }
+      cb.clientside = false;
       GLctx.vertexAttribIPointer(index, size, type, stride, ptr);
     };
 
   var _emscripten_glVertexAttribPointer = (index, size, type, normalized, stride, ptr) => {
+      var cb = GL.currentContext.clientBuffers[index];
+      if (!GLctx.currentArrayBufferBinding) {
+        cb.size = size;
+        cb.type = type;
+        cb.normalized = normalized;
+        cb.stride = stride;
+        cb.ptr = ptr;
+        cb.clientside = true;
+        cb.vertexAttribPointerAdaptor = /** @this {WebGLRenderingContext} */ function(index, size, type, normalized, stride, ptr) {
+          this.vertexAttribPointer(index, size, type, normalized, stride, ptr);
+        };
+        return;
+      }
+      cb.clientside = false;
       GLctx.vertexAttribPointer(index, size, type, !!normalized, stride, ptr);
     };
 
@@ -10411,6 +10814,11 @@ PThread.init();;
       Module['pauseMainLoop'] = MainLoop.pause;
       Module['resumeMainLoop'] = MainLoop.resume;
       MainLoop.init();;
+
+      // Signal GL rendering layer that processing of a new frame is about to
+      // start. This helps it optimize VBO double-buffering and reduce GPU stalls.
+      registerPreMainLoop(() => GL.newRenderingFrameStarted());
+    ;
 for (let i = 0; i < 32; ++i) tempFixedLengthArray.push(new Array(i));;
 // End JS library code
 
@@ -10540,7 +10948,6 @@ if (Module['printErr']) err = Module['printErr'];
   'safeRequestAnimationFrame',
   'clearImmediateWrapped',
   'registerPostMainLoop',
-  'registerPreMainLoop',
   'getPromise',
   'makePromise',
   'addPromise',
@@ -10694,6 +11101,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'emSetImmediate',
   'emClearImmediate_deps',
   'emClearImmediate',
+  'registerPreMainLoop',
   'promiseMap',
   'Browser',
   'requestFullscreen',
@@ -10847,6 +11255,8 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'webglGetLeftBracePos',
   'emscriptenWebGLGetVertexAttrib',
   '__glGetActiveAttribOrUniform',
+  'emscriptenWebGLGetBufferBinding',
+  'emscriptenWebGLValidateMapBufferTarget',
   'AL',
   'GLUT',
   'EGL',
@@ -10970,73 +11380,73 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('wasmBinary');
 }
 var ASM_CONSTS = {
-  136037544: () => { if (typeof(Module['SDL3']) === 'undefined') { Module['SDL3'] = {}; } var SDL3 = Module['SDL3']; if (typeof(SDL3.JSVarToCPtr) === 'undefined') { SDL3.JSVarToCPtr = function(v) { return v; }; } if (typeof(SDL3.CPtrToHeap32Index) === 'undefined') { SDL3.CPtrToHeap32Index = function(ptr) { return ptr >>> 2; }; } },  
- 136037858: ($0) => { var str = UTF8ToString($0) + '\n\n' + 'Abort/Retry/Ignore/AlwaysIgnore? [ariA] :'; var reply = window.prompt(str, "i"); if (reply === null) { reply = "i"; } return reply.length === 1 ? reply.charCodeAt(0) : -1; },  
- 136038073: () => { Module['SDL3'].camera = {}; },  
- 136038105: () => { return (navigator.mediaDevices === undefined) ? 0 : 1; },  
- 136038164: ($0, $1, $2, $3, $4) => { const device = $0; const w = $1; const h = $2; const framerate_numerator = $3; const framerate_denominator = $4; const outcome = Module._SDLEmscriptenCameraPermissionOutcome; const iterate = Module._SDLEmscriptenThreadIterate; const constraints = {}; if ((w <= 0) || (h <= 0)) { constraints.video = true; } else { constraints.video = {}; constraints.video.width = w; constraints.video.height = h; } if ((framerate_numerator > 0) && (framerate_denominator > 0)) { var fps = framerate_numerator / framerate_denominator; constraints.video.frameRate = { ideal: fps }; } function grabNextCameraFrame() { const SDL3 = Module['SDL3']; if ((typeof(SDL3) === 'undefined') || (typeof(SDL3.camera) === 'undefined') || (typeof(SDL3.camera.stream) === 'undefined')) { return; } const nextframems = SDL3.camera.next_frame_time; const now = performance.now(); if (now >= nextframems) { iterate(device); while (SDL3.camera.next_frame_time < now) { SDL3.camera.next_frame_time += SDL3.camera.fpsincrms; } } requestAnimationFrame(grabNextCameraFrame); } navigator.mediaDevices.getUserMedia(constraints) .then((stream) => { const settings = stream.getVideoTracks()[0].getSettings(); const actualw = settings.width; const actualh = settings.height; const actualfps = settings.frameRate; console.log("Camera is opened! Actual spec: (" + actualw + "x" + actualh + "), fps=" + actualfps); if (outcome(device, 1, actualw, actualh, actualfps)) { const video = document.createElement("video"); video.width = actualw; video.height = actualh; video.style.display = 'none'; video.srcObject = stream; const canvas = document.createElement("canvas"); canvas.width = actualw; canvas.height = actualh; canvas.style.display = 'none'; const ctx2d = canvas.getContext('2d'); const SDL3 = Module['SDL3']; SDL3.camera.width = actualw; SDL3.camera.height = actualh; SDL3.camera.fps = actualfps; SDL3.camera.fpsincrms = 1000.0 / actualfps; SDL3.camera.stream = stream; SDL3.camera.video = video; SDL3.camera.canvas = canvas; SDL3.camera.ctx2d = ctx2d; SDL3.camera.next_frame_time = performance.now(); video.play(); video.addEventListener('loadedmetadata', () => { grabNextCameraFrame(); }); } }) .catch((err) => { console.error("Tried to open camera but it threw an error! " + err.name + ": " + err.message); outcome(device, 0, 0, 0, 0); }); },  
- 136040470: () => { const SDL3 = Module['SDL3']; if ((typeof(SDL3) === 'undefined') || (typeof(SDL3.camera) === 'undefined') || (typeof(SDL3.camera.stream) === 'undefined')) { return; } SDL3.camera.stream.getTracks().forEach(track => track.stop()); SDL3.camera = {}; },  
- 136040721: ($0, $1, $2) => { const w = $0; const h = $1; const rgba = $2; const SDL3 = Module['SDL3']; if ((typeof(SDL3) === 'undefined') || (typeof(SDL3.camera) === 'undefined') || (typeof(SDL3.camera.ctx2d) === 'undefined')) { return 0; } SDL3.camera.ctx2d.drawImage(SDL3.camera.video, 0, 0, w, h); const imgrgba = SDL3.camera.ctx2d.getImageData(0, 0, w, h).data; HEAPU8.set(imgrgba, rgba); return 1; },  
- 136041099: () => { if (typeof(Module['SDL3']) !== 'undefined') { Module['SDL3'].camera = undefined; } },  
- 136041186: () => { Module['SDL3'].dummy_audio = {}; Module['SDL3'].dummy_audio.timers = []; Module['SDL3'].dummy_audio.timers[0] = undefined; Module['SDL3'].dummy_audio.timers[1] = undefined; },  
- 136041363: ($0, $1, $2, $3, $4) => { var a = Module['SDL3'].dummy_audio; if (a.timers[$0] !== undefined) { clearInterval(a.timers[$0]); } a.timers[$0] = setInterval(function() { dynCall('vi', $3, [$4]); }, ($1 / $2) * 1000); },  
- 136041555: ($0) => { var a = Module['SDL3'].dummy_audio; if (a.timers[$0] !== undefined) { clearInterval(a.timers[$0]); } a.timers[$0] = undefined; },  
- 136041686: () => { if (typeof(AudioContext) !== 'undefined') { return true; } else if (typeof(webkitAudioContext) !== 'undefined') { return true; } return false; },  
- 136041833: () => { if ((typeof(navigator.mediaDevices) !== 'undefined') && (typeof(navigator.mediaDevices.getUserMedia) !== 'undefined')) { return true; } else if (typeof(navigator.webkitGetUserMedia) !== 'undefined') { return true; } return false; },  
- 136042067: () => { var SDL3 = Module['SDL3']; if (typeof(SDL3.audio_playback) === 'undefined') { SDL3.audio_playback = {}; } if (typeof(SDL3.audio_recording) === 'undefined') { SDL3.audio_recording = {}; } if (!SDL3.audioContext) { if (typeof(AudioContext) !== 'undefined') { SDL3.audioContext = new AudioContext(); } else if (typeof(webkitAudioContext) !== 'undefined') { SDL3.audioContext = new webkitAudioContext(); } if (SDL3.audioContext) { if ((typeof navigator.userActivation) === 'undefined') { autoResumeAudioContext(SDL3.audioContext); } } } return (SDL3.audioContext !== undefined); },  
- 136042646: () => { return Module['SDL3'].audioContext.sampleRate; },  
- 136042697: ($0, $1, $2, $3) => { var SDL3 = Module['SDL3']; var have_microphone = function(stream) { if (SDL3.audio_recording.silenceTimer !== undefined) { clearInterval(SDL3.audio_recording.silenceTimer); SDL3.audio_recording.silenceTimer = undefined; SDL3.audio_recording.silenceBuffer = undefined } SDL3.audio_recording.mediaStreamNode = SDL3.audioContext.createMediaStreamSource(stream); SDL3.audio_recording.scriptProcessorNode = SDL3.audioContext.createScriptProcessor($1, $0, 1); SDL3.audio_recording.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) { if ((SDL3 === undefined) || (SDL3.audio_recording === undefined)) { return; } audioProcessingEvent.outputBuffer.getChannelData(0).fill(0.0); SDL3.audio_recording.currentRecordingBuffer = audioProcessingEvent.inputBuffer; dynCall('ip', $2, [$3]); }; SDL3.audio_recording.mediaStreamNode.connect(SDL3.audio_recording.scriptProcessorNode); SDL3.audio_recording.scriptProcessorNode.connect(SDL3.audioContext.destination); SDL3.audio_recording.stream = stream; }; var no_microphone = function(error) { }; SDL3.audio_recording.silenceBuffer = SDL3.audioContext.createBuffer($0, $1, SDL3.audioContext.sampleRate); SDL3.audio_recording.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { SDL3.audio_recording.currentRecordingBuffer = SDL3.audio_recording.silenceBuffer; dynCall('ip', $2, [$3]); }; SDL3.audio_recording.silenceTimer = setInterval(silence_callback, ($1 / SDL3.audioContext.sampleRate) * 1000); if ((navigator.mediaDevices !== undefined) && (navigator.mediaDevices.getUserMedia !== undefined)) { navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(have_microphone).catch(no_microphone); } else if (navigator.webkitGetUserMedia !== undefined) { navigator.webkitGetUserMedia({ audio: true, video: false }, have_microphone, no_microphone); } },  
- 136044538: ($0, $1, $2, $3) => { var SDL3 = Module['SDL3']; SDL3.audio_playback.scriptProcessorNode = SDL3.audioContext['createScriptProcessor']($1, 0, $0); SDL3.audio_playback.scriptProcessorNode['onaudioprocess'] = function (e) { if ((SDL3 === undefined) || (SDL3.audio_playback === undefined)) { return; } if (SDL3.audio_playback.silenceTimer !== undefined) { clearInterval(SDL3.audio_playback.silenceTimer); SDL3.audio_playback.silenceTimer = undefined; SDL3.audio_playback.silenceBuffer = undefined; } SDL3.audio_playback.currentPlaybackBuffer = e['outputBuffer']; dynCall('ip', $2, [$3]); }; SDL3.audio_playback.scriptProcessorNode['connect'](SDL3.audioContext['destination']); if (SDL3.audioContext.state === 'suspended') { SDL3.audio_playback.silenceBuffer = SDL3.audioContext.createBuffer($0, $1, SDL3.audioContext.sampleRate); SDL3.audio_playback.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { if ((typeof navigator.userActivation) !== 'undefined') { if (navigator.userActivation.hasBeenActive) { SDL3.audioContext.resume(); } } SDL3.audio_playback.currentPlaybackBuffer = SDL3.audio_playback.silenceBuffer; dynCall('ip', $2, [$3]); SDL3.audio_playback.currentPlaybackBuffer = undefined; }; SDL3.audio_playback.silenceTimer = setInterval(silence_callback, ($1 / SDL3.audioContext.sampleRate) * 1000); } },  
- 136045854: ($0) => { var SDL3 = Module['SDL3']; if ($0) { if (SDL3.audio_recording.silenceTimer !== undefined) { clearInterval(SDL3.audio_recording.silenceTimer); } if (SDL3.audio_recording.stream !== undefined) { var tracks = SDL3.audio_recording.stream.getAudioTracks(); for (var i = 0; i < tracks.length; i++) { SDL3.audio_recording.stream.removeTrack(tracks[i]); } } if (SDL3.audio_recording.scriptProcessorNode !== undefined) { SDL3.audio_recording.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) {}; SDL3.audio_recording.scriptProcessorNode.disconnect(); } if (SDL3.audio_recording.mediaStreamNode !== undefined) { SDL3.audio_recording.mediaStreamNode.disconnect(); } SDL3.audio_recording = undefined; } else { if (SDL3.audio_playback.scriptProcessorNode != undefined) { SDL3.audio_playback.scriptProcessorNode.disconnect(); } if (SDL3.audio_playback.silenceTimer !== undefined) { clearInterval(SDL3.audio_playback.silenceTimer); } SDL3.audio_playback = undefined; } if ((SDL3.audioContext !== undefined) && (SDL3.audio_playback === undefined) && (SDL3.audio_recording === undefined)) { SDL3.audioContext.close(); SDL3.audioContext = undefined; } },  
- 136047010: ($0, $1) => { var SDL3 = Module['SDL3']; var buf = SDL3.CPtrToHeap32Index($0); var numChannels = SDL3.audio_playback.currentPlaybackBuffer['numberOfChannels']; for (var c = 0; c < numChannels; ++c) { var channelData = SDL3.audio_playback.currentPlaybackBuffer['getChannelData'](c); if (channelData.length != $1) { throw 'Web Audio playback buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } for (var j = 0; j < $1; ++j) { channelData[j] = HEAPF32[buf + (j * numChannels + c)]; } } },  
- 136047543: ($0, $1) => { var SDL3 = Module['SDL3']; var numChannels = SDL3.audio_recording.currentRecordingBuffer.numberOfChannels; for (var c = 0; c < numChannels; ++c) { var channelData = SDL3.audio_recording.currentRecordingBuffer.getChannelData(c); if (channelData.length != $1) { throw 'Web Audio recording buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } if (numChannels == 1) { for (var j = 0; j < $1; ++j) { setValue($0 + (j * 4), channelData[j], 'float'); } } else { for (var j = 0; j < $1; ++j) { setValue($0 + (((j * numChannels) + c) * 4), channelData[j], 'float'); } } } },  
- 136048170: ($0) => { let gamepads = navigator['getGamepads'](); if (!gamepads) { return 0; } let gamepad = gamepads[$0]; if (!gamepad || !gamepad['vibrationActuator']) { return 0; } return 1; },  
- 136048345: ($0, $1, $2) => { let gamepads = navigator['getGamepads'](); if (!gamepads) { return 0; } let gamepad = gamepads[$0]; if (!gamepad || !gamepad['vibrationActuator']) { return 0; } gamepad['vibrationActuator']['playEffect']('dual-rumble', { 'startDelay': 0, 'duration': 3000, 'weakMagnitude': $2 / 0xFFFF, 'strongMagnitude': $1 / 0xFFFF, }); return 1; },  
- 136048681: ($0) => { var parms = new URLSearchParams(window.location.search); for (const [key, value] of parms) { if (key.startsWith("SDL_")) { var ckey = stringToNewUTF8(key); var cvalue = stringToNewUTF8(value); if ((ckey != 0) && (cvalue != 0)) { dynCall('iiii', $0, [ckey, cvalue, 1]); } _Emscripten_force_free(ckey); _Emscripten_force_free(cvalue); } } },  
- 136049022: ($0, $1, $2, $3) => { var w = $0; var h = $1; var pixels = $2; var canvasId = UTF8ToString($3); var canvas = document.querySelector(canvasId); var SDL3 = Module['SDL3']; if (SDL3.ctxCanvas !== canvas) { SDL3.ctx = Browser.createContext(canvas, false, true); if (!SDL3.ctx) { return false; } SDL3.ctxCanvas = canvas; } if (SDL3.w !== w || SDL3.h !== h || SDL3.imageCtx !== SDL3.ctx) { SDL3.image = SDL3.ctx.createImageData(w, h); SDL3.w = w; SDL3.h = h; SDL3.imageCtx = SDL3.ctx; } var data = SDL3.image.data; var src = pixels / 4; if (SDL3.data32Data !== data) { SDL3.data32 = new Int32Array(data.buffer); SDL3.data32Data = data; } var data32 = SDL3.data32; data32.set(HEAP32.subarray(src, src + data32.length)); SDL3.ctx.putImageData(SDL3.image, 0, 0); return true; },  
- 136049771: () => { var SDL3 = Module['SDL3']; SDL3['mouse_x'] = 0; SDL3['mouse_y'] = 0; SDL3['mouse_buttons'] = []; for (var i = 0; i < 5; ++i) { SDL3['mouse_buttons'][i] = false; } document.addEventListener('mousemove', function(e) { var SDL3 = Module['SDL3']; SDL3['mouse_x'] = e.clientX; SDL3['mouse_y'] = e.clientY; }); document.addEventListener('mousedown', function(e) { var SDL3 = Module['SDL3']; if (0 <= e.button && e.button < SDL3['mouse_buttons'].length) { SDL3['mouse_buttons'][e.button] = true; } }); document.addEventListener('mouseup', function(e) { var SDL3 = Module['SDL3']; if (0 <= e.button && e.button < SDL3['mouse_buttons'].length) { SDL3['mouse_buttons'][e.button] = false; } }); },  
- 136050459: ($0, $1, $2, $3, $4) => { var w = $0; var h = $1; var hot_x = $2; var hot_y = $3; var pixels = $4; var canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h; var ctx = canvas.getContext("2d"); var image = ctx.createImageData(w, h); var data = image.data; var src = pixels / 4; var data32 = new Int32Array(data.buffer); data32.set(HEAP32.subarray(src, src + data32.length)); ctx.putImageData(image, 0, 0); var url = hot_x === 0 && hot_y === 0 ? "url(" + canvas.toDataURL() + "), auto" : "url(" + canvas.toDataURL() + ") " + hot_x + " " + hot_y + ", auto"; var urlBuf = _SDL_malloc(url.length + 1); stringToUTF8(url, urlBuf, url.length + 1); return urlBuf; },  
- 136051117: ($0) => { if (Module['canvas']) { Module['canvas'].style['cursor'] = UTF8ToString($0); } },  
- 136051200: () => { if (Module['canvas']) { Module['canvas'].style['cursor'] = 'none'; } },  
- 136051269: () => { return Module['SDL3']['mouse_x']; },  
- 136051307: () => { return Module['SDL3']['mouse_y']; },  
- 136051345: ($0) => { return Module['SDL3']['mouse_buttons'][$0]; },  
- 136051393: ($0) => { var data = $0; document.sdlEventHandlerLockKeysCheck = function(event) { if ((event.key != "CapsLock") && (event.key != "NumLock") && (event.key != "ScrollLock")) { _Emscripten_HandleLockKeysCheck(Module['SDL3'].JSVarToCPtr(data), event.getModifierState("CapsLock"), event.getModifierState("NumLock"), event.getModifierState("ScrollLock")); } }; document.addEventListener("keydown", document.sdlEventHandlerLockKeysCheck); },  
- 136051820: () => { document.removeEventListener("keydown", document.sdlEventHandlerLockKeysCheck); },  
- 136051904: ($0) => { var target = document; if (target) { target.sdlEventHandlerMouseButtonUpGlobal = function(event) { var SDL3 = Module['SDL3']; var d = SDL3.makePointerEventCStruct(0, 0, event); if (d != 0) { _Emscripten_HandleMouseButtonUpGlobal(SDL3.JSVarToCPtr($0), d); _SDL_free(d); } }; target.addEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal); } },  
- 136052265: ($0) => { var SDL3 = Module['SDL3']; if (SDL3.makePointerEventCStruct === undefined) { SDL3.makePointerEventCStruct = function(left, top, event) { var ptrtype = 0; if (event.pointerType == "mouse") { ptrtype = 1; } else if (event.pointerType == "touch") { ptrtype = 2; } else if (event.pointerType == "pen") { ptrtype = 3; } else { return 0; } var ptr = _SDL_malloc($0); if (ptr != 0) { var idx = SDL3.CPtrToHeap32Index(ptr); HEAP32[idx++] = ptrtype; HEAP32[idx++] = event.pointerId; HEAP32[idx++] = (typeof(event.button) !== "undefined") ? event.button : -1; HEAP32[idx++] = event.buttons; HEAP32[idx++] = (event.type == "pointerdown") ? 1 : 0; HEAPF32[idx++] = event.movementX; HEAPF32[idx++] = event.movementY; HEAPF32[idx++] = event.clientX - left; HEAPF32[idx++] = event.clientY - top; if (ptrtype == 3) { HEAPF32[idx++] = event.pressure; HEAPF32[idx++] = event.tangentialPressure; HEAPF32[idx++] = event.tiltX; HEAPF32[idx++] = event.tiltY; HEAPF32[idx++] = event.twist; } } return ptr; }; } },  
- 136053257: ($0) => { var id = UTF8ToString($0); try { var canvas = document.querySelector(id); if (canvas) { return canvas === document.activeElement; } } catch (e) { } return false; },  
- 136053423: () => { return document.hasFocus(); },  
- 136053455: () => { var target = document; if (target) { target.removeEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal); target.sdlEventHandlerMouseButtonUpGlobal = undefined; } },  
- 136053637: () => { return document.body.clientWidth; },  
- 136053675: () => { return document.body.clientHeight; },  
- 136053714: () => { return window.innerWidth; },  
- 136053744: () => { return window.innerHeight; },  
- 136053775: () => { return window.outerWidth; },  
- 136053805: () => { return window.outerHeight; },  
- 136053836: () => { return window.pageXOffset; },  
- 136053867: () => { return window.pageYOffset; },  
- 136053898: ($0, $1) => { var target = document.querySelector(UTF8ToString($1)); if (target) { var SDL3 = Module['SDL3']; var data = $0; target.sdlEventHandlerPointerEnter = function(event) { var rect = target.getBoundingClientRect(); var d = SDL3.makePointerEventCStruct(rect.left, rect.top, event); if (d != 0) { _Emscripten_HandlePointerEnter(SDL3.JSVarToCPtr(data), d); _SDL_free(d); } }; target.sdlEventHandlerPointerLeave = function(event) { var rect = target.getBoundingClientRect(); var d = SDL3.makePointerEventCStruct(rect.left, rect.top, event); if (d != 0) { _Emscripten_HandlePointerLeave(SDL3.JSVarToCPtr(data), d); _SDL_free(d); } }; target.sdlEventHandlerPointerGeneric = function(event) { var rect = target.getBoundingClientRect(); var d = SDL3.makePointerEventCStruct(rect.left, rect.top, event); if (d != 0) { _Emscripten_HandlePointerGeneric(SDL3.JSVarToCPtr(data), d); _SDL_free(d); } }; target.style.touchAction = "none"; target.addEventListener("pointerenter", target.sdlEventHandlerPointerEnter); target.addEventListener("pointerleave", target.sdlEventHandlerPointerLeave); target.addEventListener("pointercancel", target.sdlEventHandlerPointerLeave); target.addEventListener("pointerdown", target.sdlEventHandlerPointerGeneric); target.addEventListener("pointermove", target.sdlEventHandlerPointerGeneric); target.addEventListener("pointerup", target.sdlEventHandlerPointerGeneric); } },  
- 136055286: ($0, $1, $2) => { var target = document.querySelector(UTF8ToString($1)); if (target) { var data = $0; var SDL3 = Module['SDL3']; var makeDropEventCStruct = function(event) { var ptr = 0; ptr = _SDL_malloc($2); if (ptr != 0) { var idx = ptr >> 2; var rect = target.getBoundingClientRect(); HEAP32[idx++] = event.clientX - rect.left; HEAP32[idx++] = event.clientY - rect.top; } return ptr; }; SDL3.eventHandlerDropDragover = function(event) { event.preventDefault(); var d = makeDropEventCStruct(event); if (d != 0) { _Emscripten_SendDragEvent(data, d); _SDL_free(d); } }; target.addEventListener("dragover", SDL3.eventHandlerDropDragover); SDL3.drop_count = 0; try { FS.mkdir("/tmp/filedrop"); } catch (e) {} SDL3.eventHandlerDropDrop = function(event) { event.preventDefault(); if (event.dataTransfer.types.includes("text/plain")) { let plain_text = stringToNewUTF8(event.dataTransfer.getData("text/plain")); _Emscripten_SendDragTextEvent(data, plain_text); _Emscripten_force_free(plain_text); } else if (event.dataTransfer.types.includes("Files")) { let files_read = 0; const files_to_read = event.dataTransfer.files.length; for (let i = 0; i < files_to_read; i++) { const file = event.dataTransfer.files.item(i); const file_reader = new FileReader(); file_reader.readAsArrayBuffer(file); file_reader.onload = function(event) { const fs_dropdir = `/tmp/filedrop/${SDL3.drop_count}`; SDL3.drop_count += 1; const fs_filepath = `${fs_dropdir}/${file.name}`; const c_fs_filepath = stringToNewUTF8(fs_filepath); const contents_array8 = new Uint8Array(event.target.result); try { FS.mkdir(fs_dropdir); var stream = FS.open(fs_filepath, "w"); FS.write(stream, contents_array8, 0, contents_array8.length, 0); FS.close(stream); _Emscripten_SendDragFileEvent(data, c_fs_filepath); } catch (e) { } _Emscripten_force_free(c_fs_filepath); onFileRead(); }; file_reader.onerror = function(event) { onFileRead(); }; } function onFileRead() { ++files_read; if (files_read === files_to_read) { _Emscripten_SendDragCompleteEvent(data); } } } _Emscripten_SendDragCompleteEvent(data); }; target.addEventListener("drop", SDL3.eventHandlerDropDrop); SDL3.eventHandlerDropDragend = function(event) { event.preventDefault(); _Emscripten_SendDragCompleteEvent(data); }; target.addEventListener("dragend", SDL3.eventHandlerDropDragend); target.addEventListener("dragleave", SDL3.eventHandlerDropDragend); } },  
- 136057653: ($0) => { var target = document.querySelector(UTF8ToString($0)); if (target) { var SDL3 = Module['SDL3']; target.removeEventListener("dragleave", SDL3.eventHandlerDropDragend); target.removeEventListener("dragend", SDL3.eventHandlerDropDragend); target.removeEventListener("drop", SDL3.eventHandlerDropDrop); SDL3.drop_count = undefined; function recursive_remove(dirpath) { FS.readdir(dirpath).forEach((filename) => { const p = `${dirpath}/${filename}`; const p_s = FS.stat(p); if (FS.isFile(p_s.mode)) { FS.unlink(p); } else if (FS.isDir(p)) { recursive_remove(p); } }); FS.rmdir(dirpath); }("/tmp/filedrop"); FS.rmdir("/tmp/filedrop"); target.removeEventListener("dragover", SDL3.eventHandlerDropDragover); SDL3.eventHandlerDropDragover = undefined; SDL3.eventHandlerDropDrop = undefined; SDL3.eventHandlerDropDragend = undefined; } },  
- 136058483: ($0) => { var target = document.querySelector(UTF8ToString($0)); if (target) { target.removeEventListener("pointerenter", target.sdlEventHandlerPointerEnter); target.removeEventListener("pointerleave", target.sdlEventHandlerPointerLeave); target.removeEventListener("pointercancel", target.sdlEventHandlerPointerLeave); target.removeEventListener("pointerdown", target.sdlEventHandlerPointerGeneric); target.removeEventListener("pointermove", target.sdlEventHandlerPointerGeneric); target.removeEventListener("pointerup", target.sdlEventHandlerPointerGeneric); target.style.touchAction = ""; target.sdlEventHandlerPointerEnter = undefined; target.sdlEventHandlerPointerLeave = undefined; target.sdlEventHandlerPointerGeneric = undefined; } },  
- 136059217: () => { if (!window.matchMedia) { return -1; } if (window.matchMedia('(prefers-color-scheme: light)').matches) { return 0; } if (window.matchMedia('(prefers-color-scheme: dark)').matches) { return 1; } return -1; },  
- 136059426: () => { if (typeof(Module['SDL3']) !== 'undefined') { var SDL3 = Module['SDL3']; SDL3.themeChangedMatchMedia.removeEventListener('change', SDL3.eventHandlerThemeChanged); SDL3.themeChangedMatchMedia = undefined; SDL3.eventHandlerThemeChanged = undefined; } },  
- 136059679: () => { return window.innerWidth; },  
- 136059709: () => { return window.innerHeight; },  
- 136059740: ($0) => { Module['requestFullscreen'] = function(lockPointer, resizeCanvas) { _requestFullscreenThroughSDL($0); }; },  
- 136059849: ($0, $1) => { var pngData = HEAPU8.buffer instanceof ArrayBuffer ? HEAPU8.subarray($0, $0 + $1) : HEAPU8.slice($0, $0 + $1); var blob = new Blob([pngData], {type: 'image/png'}); var url = URL.createObjectURL(blob); var link = document.querySelector("link[rel~='icon']"); if (!link) { link = document.createElement('link'); link.rel = 'icon'; link.type = 'image/png'; document.head.appendChild(link); } if (link.href && link.href.startsWith('blob:')) { URL.revokeObjectURL(link.href); } link.href = url; },  
- 136060342: () => { Module['requestFullscreen'] = function(lockPointer, resizeCanvas) {}; },  
- 136060416: () => { return window.innerWidth; },  
- 136060446: () => { return window.innerHeight; },  
- 136060477: ($0) => { var canvas = document.querySelector(UTF8ToString($0)); canvas.SDL3_original_position = canvas.style.position; canvas.SDL3_original_top = canvas.style.top; canvas.SDL3_original_left = canvas.style.left; var div = document.createElement('div'); div.id = 'SDL3_fill_document_background_elements'; div.SDL3_canvas = canvas; div.SDL3_canvas_parent = canvas.parentNode; div.SDL3_canvas_nextsib = canvas.nextSibling; var children = Array.from(document.body.children); for (var child of children) { div.appendChild(child); } document.body.appendChild(div); div.style.display = 'none'; document.body.appendChild(canvas); canvas.style.position = 'fixed'; canvas.style.top = '0'; canvas.style.left = '0'; },  
- 136061175: () => { var div = document.getElementById('SDL3_fill_document_background_elements'); if (div) { if (div.SDL3_canvas_nextsib) { div.SDL3_canvas_parent.insertBefore(div.SDL3_canvas, div.SDL3_canvas_nextsib); } else { div.SDL3_canvas_parent.appendChild(div.SDL3_canvas); } while (div.firstChild) { document.body.insertBefore(div.firstChild, div); } div.SDL3_canvas.style.position = div.SDL3_canvas.SDL3_original_position; div.SDL3_canvas.style.top = div.SDL3_canvas.SDL3_original_top; div.SDL3_canvas.style.left = div.SDL3_canvas.SDL3_original_left; div.remove(); } },  
- 136061734: () => { if (window.matchMedia) { var SDL3 = Module['SDL3']; SDL3.eventHandlerThemeChanged = function(event) { _Emscripten_SendSystemThemeChangedEvent(); }; SDL3.themeChangedMatchMedia = window.matchMedia('(prefers-color-scheme: dark)'); SDL3.themeChangedMatchMedia.addEventListener('change', SDL3.eventHandlerThemeChanged); } },  
- 136062056: ($0, $1, $2, $3, $4) => { var title = UTF8ToString($0); var message = UTF8ToString($1); var background = UTF8ToString($2); var color = UTF8ToString($3); var id = UTF8ToString($4); var dialog = document.createElement("dialog"); dialog.classList.add("SDL3_messagebox"); dialog.id = id; dialog.style.color = color; dialog.style.backgroundColor = background; document.body.append(dialog); var h1 = document.createElement("h1"); h1.innerText = title; dialog.append(h1); var p = document.createElement("p"); p.innerText = message; dialog.append(p); dialog.showModal(); },  
- 136062597: ($0, $1, $2, $3, $4, $5, $6, $7) => { var dialog_id = UTF8ToString($0); var text = UTF8ToString($1); var responseId = $2; var clickOnReturn = $3; var clickOnEscape = $4; var border = UTF8ToString($5); var background = UTF8ToString($6); var hovered = UTF8ToString($7); var dialog = document.getElementById(dialog_id); if (!dialog) { return false; } var button = document.createElement("button"); button.innerText = text; button.style.borderColor = border; button.style.backgroundColor = background; dialog.addEventListener('keydown', function(e) { if (clickOnReturn && e.key === "Enter") { e.preventDefault(); button.click(); } else if (clickOnEscape && e.key === "Escape") { e.preventDefault(); button.click(); } }); dialog.addEventListener('cancel', function(e){ e.preventDefault(); }); button.onmouseenter = function(e){ button.style.backgroundColor = hovered; }; button.onmouseleave = function(e){ button.style.backgroundColor = background; }; button.onclick = function(e) { dialog.close(responseId); }; dialog.append(button); return true; },  
- 136063606: ($0) => { var dialog_id = UTF8ToString($0); var dialog = document.getElementById(dialog_id); if (!dialog) { return false; } return dialog.open; },  
- 136063744: ($0) => { var dialog_id = UTF8ToString($0); var dialog = document.getElementById(dialog_id); if (!dialog) { return 0; } try { return parseInt(dialog.returnValue); } catch(e) { return 0; } },  
- 136063926: ($0, $1) => { alert(UTF8ToString($0) + "\n\n" + UTF8ToString($1)); }
+  136037624: () => { if (typeof(Module['SDL3']) === 'undefined') { Module['SDL3'] = {}; } var SDL3 = Module['SDL3']; if (typeof(SDL3.JSVarToCPtr) === 'undefined') { SDL3.JSVarToCPtr = function(v) { return v; }; } if (typeof(SDL3.CPtrToHeap32Index) === 'undefined') { SDL3.CPtrToHeap32Index = function(ptr) { return ptr >>> 2; }; } },  
+ 136037938: ($0) => { var str = UTF8ToString($0) + '\n\n' + 'Abort/Retry/Ignore/AlwaysIgnore? [ariA] :'; var reply = window.prompt(str, "i"); if (reply === null) { reply = "i"; } return reply.length === 1 ? reply.charCodeAt(0) : -1; },  
+ 136038153: () => { Module['SDL3'].camera = {}; },  
+ 136038185: () => { return (navigator.mediaDevices === undefined) ? 0 : 1; },  
+ 136038244: ($0, $1, $2, $3, $4) => { const device = $0; const w = $1; const h = $2; const framerate_numerator = $3; const framerate_denominator = $4; const outcome = Module._SDLEmscriptenCameraPermissionOutcome; const iterate = Module._SDLEmscriptenThreadIterate; const constraints = {}; if ((w <= 0) || (h <= 0)) { constraints.video = true; } else { constraints.video = {}; constraints.video.width = w; constraints.video.height = h; } if ((framerate_numerator > 0) && (framerate_denominator > 0)) { var fps = framerate_numerator / framerate_denominator; constraints.video.frameRate = { ideal: fps }; } function grabNextCameraFrame() { const SDL3 = Module['SDL3']; if ((typeof(SDL3) === 'undefined') || (typeof(SDL3.camera) === 'undefined') || (typeof(SDL3.camera.stream) === 'undefined')) { return; } const nextframems = SDL3.camera.next_frame_time; const now = performance.now(); if (now >= nextframems) { iterate(device); while (SDL3.camera.next_frame_time < now) { SDL3.camera.next_frame_time += SDL3.camera.fpsincrms; } } requestAnimationFrame(grabNextCameraFrame); } navigator.mediaDevices.getUserMedia(constraints) .then((stream) => { const settings = stream.getVideoTracks()[0].getSettings(); const actualw = settings.width; const actualh = settings.height; const actualfps = settings.frameRate; console.log("Camera is opened! Actual spec: (" + actualw + "x" + actualh + "), fps=" + actualfps); if (outcome(device, 1, actualw, actualh, actualfps)) { const video = document.createElement("video"); video.width = actualw; video.height = actualh; video.style.display = 'none'; video.srcObject = stream; const canvas = document.createElement("canvas"); canvas.width = actualw; canvas.height = actualh; canvas.style.display = 'none'; const ctx2d = canvas.getContext('2d'); const SDL3 = Module['SDL3']; SDL3.camera.width = actualw; SDL3.camera.height = actualh; SDL3.camera.fps = actualfps; SDL3.camera.fpsincrms = 1000.0 / actualfps; SDL3.camera.stream = stream; SDL3.camera.video = video; SDL3.camera.canvas = canvas; SDL3.camera.ctx2d = ctx2d; SDL3.camera.next_frame_time = performance.now(); video.play(); video.addEventListener('loadedmetadata', () => { grabNextCameraFrame(); }); } }) .catch((err) => { console.error("Tried to open camera but it threw an error! " + err.name + ": " + err.message); outcome(device, 0, 0, 0, 0); }); },  
+ 136040550: () => { const SDL3 = Module['SDL3']; if ((typeof(SDL3) === 'undefined') || (typeof(SDL3.camera) === 'undefined') || (typeof(SDL3.camera.stream) === 'undefined')) { return; } SDL3.camera.stream.getTracks().forEach(track => track.stop()); SDL3.camera = {}; },  
+ 136040801: ($0, $1, $2) => { const w = $0; const h = $1; const rgba = $2; const SDL3 = Module['SDL3']; if ((typeof(SDL3) === 'undefined') || (typeof(SDL3.camera) === 'undefined') || (typeof(SDL3.camera.ctx2d) === 'undefined')) { return 0; } SDL3.camera.ctx2d.drawImage(SDL3.camera.video, 0, 0, w, h); const imgrgba = SDL3.camera.ctx2d.getImageData(0, 0, w, h).data; HEAPU8.set(imgrgba, rgba); return 1; },  
+ 136041179: () => { if (typeof(Module['SDL3']) !== 'undefined') { Module['SDL3'].camera = undefined; } },  
+ 136041266: () => { Module['SDL3'].dummy_audio = {}; Module['SDL3'].dummy_audio.timers = []; Module['SDL3'].dummy_audio.timers[0] = undefined; Module['SDL3'].dummy_audio.timers[1] = undefined; },  
+ 136041443: ($0, $1, $2, $3, $4) => { var a = Module['SDL3'].dummy_audio; if (a.timers[$0] !== undefined) { clearInterval(a.timers[$0]); } a.timers[$0] = setInterval(function() { dynCall('vi', $3, [$4]); }, ($1 / $2) * 1000); },  
+ 136041635: ($0) => { var a = Module['SDL3'].dummy_audio; if (a.timers[$0] !== undefined) { clearInterval(a.timers[$0]); } a.timers[$0] = undefined; },  
+ 136041766: () => { if (typeof(AudioContext) !== 'undefined') { return true; } else if (typeof(webkitAudioContext) !== 'undefined') { return true; } return false; },  
+ 136041913: () => { if ((typeof(navigator.mediaDevices) !== 'undefined') && (typeof(navigator.mediaDevices.getUserMedia) !== 'undefined')) { return true; } else if (typeof(navigator.webkitGetUserMedia) !== 'undefined') { return true; } return false; },  
+ 136042147: () => { var SDL3 = Module['SDL3']; if (typeof(SDL3.audio_playback) === 'undefined') { SDL3.audio_playback = {}; } if (typeof(SDL3.audio_recording) === 'undefined') { SDL3.audio_recording = {}; } if (!SDL3.audioContext) { if (typeof(AudioContext) !== 'undefined') { SDL3.audioContext = new AudioContext(); } else if (typeof(webkitAudioContext) !== 'undefined') { SDL3.audioContext = new webkitAudioContext(); } if (SDL3.audioContext) { if ((typeof navigator.userActivation) === 'undefined') { autoResumeAudioContext(SDL3.audioContext); } } } return (SDL3.audioContext !== undefined); },  
+ 136042726: () => { return Module['SDL3'].audioContext.sampleRate; },  
+ 136042777: ($0, $1, $2, $3) => { var SDL3 = Module['SDL3']; var have_microphone = function(stream) { if (SDL3.audio_recording.silenceTimer !== undefined) { clearInterval(SDL3.audio_recording.silenceTimer); SDL3.audio_recording.silenceTimer = undefined; SDL3.audio_recording.silenceBuffer = undefined } SDL3.audio_recording.mediaStreamNode = SDL3.audioContext.createMediaStreamSource(stream); SDL3.audio_recording.scriptProcessorNode = SDL3.audioContext.createScriptProcessor($1, $0, 1); SDL3.audio_recording.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) { if ((SDL3 === undefined) || (SDL3.audio_recording === undefined)) { return; } audioProcessingEvent.outputBuffer.getChannelData(0).fill(0.0); SDL3.audio_recording.currentRecordingBuffer = audioProcessingEvent.inputBuffer; dynCall('ip', $2, [$3]); }; SDL3.audio_recording.mediaStreamNode.connect(SDL3.audio_recording.scriptProcessorNode); SDL3.audio_recording.scriptProcessorNode.connect(SDL3.audioContext.destination); SDL3.audio_recording.stream = stream; }; var no_microphone = function(error) { }; SDL3.audio_recording.silenceBuffer = SDL3.audioContext.createBuffer($0, $1, SDL3.audioContext.sampleRate); SDL3.audio_recording.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { SDL3.audio_recording.currentRecordingBuffer = SDL3.audio_recording.silenceBuffer; dynCall('ip', $2, [$3]); }; SDL3.audio_recording.silenceTimer = setInterval(silence_callback, ($1 / SDL3.audioContext.sampleRate) * 1000); if ((navigator.mediaDevices !== undefined) && (navigator.mediaDevices.getUserMedia !== undefined)) { navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(have_microphone).catch(no_microphone); } else if (navigator.webkitGetUserMedia !== undefined) { navigator.webkitGetUserMedia({ audio: true, video: false }, have_microphone, no_microphone); } },  
+ 136044618: ($0, $1, $2, $3) => { var SDL3 = Module['SDL3']; SDL3.audio_playback.scriptProcessorNode = SDL3.audioContext['createScriptProcessor']($1, 0, $0); SDL3.audio_playback.scriptProcessorNode['onaudioprocess'] = function (e) { if ((SDL3 === undefined) || (SDL3.audio_playback === undefined)) { return; } if (SDL3.audio_playback.silenceTimer !== undefined) { clearInterval(SDL3.audio_playback.silenceTimer); SDL3.audio_playback.silenceTimer = undefined; SDL3.audio_playback.silenceBuffer = undefined; } SDL3.audio_playback.currentPlaybackBuffer = e['outputBuffer']; dynCall('ip', $2, [$3]); }; SDL3.audio_playback.scriptProcessorNode['connect'](SDL3.audioContext['destination']); if (SDL3.audioContext.state === 'suspended') { SDL3.audio_playback.silenceBuffer = SDL3.audioContext.createBuffer($0, $1, SDL3.audioContext.sampleRate); SDL3.audio_playback.silenceBuffer.getChannelData(0).fill(0.0); var silence_callback = function() { if ((typeof navigator.userActivation) !== 'undefined') { if (navigator.userActivation.hasBeenActive) { SDL3.audioContext.resume(); } } SDL3.audio_playback.currentPlaybackBuffer = SDL3.audio_playback.silenceBuffer; dynCall('ip', $2, [$3]); SDL3.audio_playback.currentPlaybackBuffer = undefined; }; SDL3.audio_playback.silenceTimer = setInterval(silence_callback, ($1 / SDL3.audioContext.sampleRate) * 1000); } },  
+ 136045934: ($0) => { var SDL3 = Module['SDL3']; if ($0) { if (SDL3.audio_recording.silenceTimer !== undefined) { clearInterval(SDL3.audio_recording.silenceTimer); } if (SDL3.audio_recording.stream !== undefined) { var tracks = SDL3.audio_recording.stream.getAudioTracks(); for (var i = 0; i < tracks.length; i++) { SDL3.audio_recording.stream.removeTrack(tracks[i]); } } if (SDL3.audio_recording.scriptProcessorNode !== undefined) { SDL3.audio_recording.scriptProcessorNode.onaudioprocess = function(audioProcessingEvent) {}; SDL3.audio_recording.scriptProcessorNode.disconnect(); } if (SDL3.audio_recording.mediaStreamNode !== undefined) { SDL3.audio_recording.mediaStreamNode.disconnect(); } SDL3.audio_recording = undefined; } else { if (SDL3.audio_playback.scriptProcessorNode != undefined) { SDL3.audio_playback.scriptProcessorNode.disconnect(); } if (SDL3.audio_playback.silenceTimer !== undefined) { clearInterval(SDL3.audio_playback.silenceTimer); } SDL3.audio_playback = undefined; } if ((SDL3.audioContext !== undefined) && (SDL3.audio_playback === undefined) && (SDL3.audio_recording === undefined)) { SDL3.audioContext.close(); SDL3.audioContext = undefined; } },  
+ 136047090: ($0, $1) => { var SDL3 = Module['SDL3']; var buf = SDL3.CPtrToHeap32Index($0); var numChannels = SDL3.audio_playback.currentPlaybackBuffer['numberOfChannels']; for (var c = 0; c < numChannels; ++c) { var channelData = SDL3.audio_playback.currentPlaybackBuffer['getChannelData'](c); if (channelData.length != $1) { throw 'Web Audio playback buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } for (var j = 0; j < $1; ++j) { channelData[j] = HEAPF32[buf + (j * numChannels + c)]; } } },  
+ 136047623: ($0, $1) => { var SDL3 = Module['SDL3']; var numChannels = SDL3.audio_recording.currentRecordingBuffer.numberOfChannels; for (var c = 0; c < numChannels; ++c) { var channelData = SDL3.audio_recording.currentRecordingBuffer.getChannelData(c); if (channelData.length != $1) { throw 'Web Audio recording buffer length mismatch! Destination size: ' + channelData.length + ' samples vs expected ' + $1 + ' samples!'; } if (numChannels == 1) { for (var j = 0; j < $1; ++j) { setValue($0 + (j * 4), channelData[j], 'float'); } } else { for (var j = 0; j < $1; ++j) { setValue($0 + (((j * numChannels) + c) * 4), channelData[j], 'float'); } } } },  
+ 136048250: ($0) => { let gamepads = navigator['getGamepads'](); if (!gamepads) { return 0; } let gamepad = gamepads[$0]; if (!gamepad || !gamepad['vibrationActuator']) { return 0; } return 1; },  
+ 136048425: ($0, $1, $2) => { let gamepads = navigator['getGamepads'](); if (!gamepads) { return 0; } let gamepad = gamepads[$0]; if (!gamepad || !gamepad['vibrationActuator']) { return 0; } gamepad['vibrationActuator']['playEffect']('dual-rumble', { 'startDelay': 0, 'duration': 3000, 'weakMagnitude': $2 / 0xFFFF, 'strongMagnitude': $1 / 0xFFFF, }); return 1; },  
+ 136048761: ($0) => { var parms = new URLSearchParams(window.location.search); for (const [key, value] of parms) { if (key.startsWith("SDL_")) { var ckey = stringToNewUTF8(key); var cvalue = stringToNewUTF8(value); if ((ckey != 0) && (cvalue != 0)) { dynCall('iiii', $0, [ckey, cvalue, 1]); } _Emscripten_force_free(ckey); _Emscripten_force_free(cvalue); } } },  
+ 136049102: ($0, $1, $2, $3) => { var w = $0; var h = $1; var pixels = $2; var canvasId = UTF8ToString($3); var canvas = document.querySelector(canvasId); var SDL3 = Module['SDL3']; if (SDL3.ctxCanvas !== canvas) { SDL3.ctx = Browser.createContext(canvas, false, true); if (!SDL3.ctx) { return false; } SDL3.ctxCanvas = canvas; } if (SDL3.w !== w || SDL3.h !== h || SDL3.imageCtx !== SDL3.ctx) { SDL3.image = SDL3.ctx.createImageData(w, h); SDL3.w = w; SDL3.h = h; SDL3.imageCtx = SDL3.ctx; } var data = SDL3.image.data; var src = pixels / 4; if (SDL3.data32Data !== data) { SDL3.data32 = new Int32Array(data.buffer); SDL3.data32Data = data; } var data32 = SDL3.data32; data32.set(HEAP32.subarray(src, src + data32.length)); SDL3.ctx.putImageData(SDL3.image, 0, 0); return true; },  
+ 136049851: () => { var SDL3 = Module['SDL3']; SDL3['mouse_x'] = 0; SDL3['mouse_y'] = 0; SDL3['mouse_buttons'] = []; for (var i = 0; i < 5; ++i) { SDL3['mouse_buttons'][i] = false; } document.addEventListener('mousemove', function(e) { var SDL3 = Module['SDL3']; SDL3['mouse_x'] = e.clientX; SDL3['mouse_y'] = e.clientY; }); document.addEventListener('mousedown', function(e) { var SDL3 = Module['SDL3']; if (0 <= e.button && e.button < SDL3['mouse_buttons'].length) { SDL3['mouse_buttons'][e.button] = true; } }); document.addEventListener('mouseup', function(e) { var SDL3 = Module['SDL3']; if (0 <= e.button && e.button < SDL3['mouse_buttons'].length) { SDL3['mouse_buttons'][e.button] = false; } }); },  
+ 136050539: ($0, $1, $2, $3, $4) => { var w = $0; var h = $1; var hot_x = $2; var hot_y = $3; var pixels = $4; var canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h; var ctx = canvas.getContext("2d"); var image = ctx.createImageData(w, h); var data = image.data; var src = pixels / 4; var data32 = new Int32Array(data.buffer); data32.set(HEAP32.subarray(src, src + data32.length)); ctx.putImageData(image, 0, 0); var url = hot_x === 0 && hot_y === 0 ? "url(" + canvas.toDataURL() + "), auto" : "url(" + canvas.toDataURL() + ") " + hot_x + " " + hot_y + ", auto"; var urlBuf = _SDL_malloc(url.length + 1); stringToUTF8(url, urlBuf, url.length + 1); return urlBuf; },  
+ 136051197: ($0) => { if (Module['canvas']) { Module['canvas'].style['cursor'] = UTF8ToString($0); } },  
+ 136051280: () => { if (Module['canvas']) { Module['canvas'].style['cursor'] = 'none'; } },  
+ 136051349: () => { return Module['SDL3']['mouse_x']; },  
+ 136051387: () => { return Module['SDL3']['mouse_y']; },  
+ 136051425: ($0) => { return Module['SDL3']['mouse_buttons'][$0]; },  
+ 136051473: ($0) => { var data = $0; document.sdlEventHandlerLockKeysCheck = function(event) { if ((event.key != "CapsLock") && (event.key != "NumLock") && (event.key != "ScrollLock")) { _Emscripten_HandleLockKeysCheck(Module['SDL3'].JSVarToCPtr(data), event.getModifierState("CapsLock"), event.getModifierState("NumLock"), event.getModifierState("ScrollLock")); } }; document.addEventListener("keydown", document.sdlEventHandlerLockKeysCheck); },  
+ 136051900: () => { document.removeEventListener("keydown", document.sdlEventHandlerLockKeysCheck); },  
+ 136051984: ($0) => { var target = document; if (target) { target.sdlEventHandlerMouseButtonUpGlobal = function(event) { var SDL3 = Module['SDL3']; var d = SDL3.makePointerEventCStruct(0, 0, event); if (d != 0) { _Emscripten_HandleMouseButtonUpGlobal(SDL3.JSVarToCPtr($0), d); _SDL_free(d); } }; target.addEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal); } },  
+ 136052345: ($0) => { var SDL3 = Module['SDL3']; if (SDL3.makePointerEventCStruct === undefined) { SDL3.makePointerEventCStruct = function(left, top, event) { var ptrtype = 0; if (event.pointerType == "mouse") { ptrtype = 1; } else if (event.pointerType == "touch") { ptrtype = 2; } else if (event.pointerType == "pen") { ptrtype = 3; } else { return 0; } var ptr = _SDL_malloc($0); if (ptr != 0) { var idx = SDL3.CPtrToHeap32Index(ptr); HEAP32[idx++] = ptrtype; HEAP32[idx++] = event.pointerId; HEAP32[idx++] = (typeof(event.button) !== "undefined") ? event.button : -1; HEAP32[idx++] = event.buttons; HEAP32[idx++] = (event.type == "pointerdown") ? 1 : 0; HEAPF32[idx++] = event.movementX; HEAPF32[idx++] = event.movementY; HEAPF32[idx++] = event.clientX - left; HEAPF32[idx++] = event.clientY - top; if (ptrtype == 3) { HEAPF32[idx++] = event.pressure; HEAPF32[idx++] = event.tangentialPressure; HEAPF32[idx++] = event.tiltX; HEAPF32[idx++] = event.tiltY; HEAPF32[idx++] = event.twist; } } return ptr; }; } },  
+ 136053337: ($0) => { var id = UTF8ToString($0); try { var canvas = document.querySelector(id); if (canvas) { return canvas === document.activeElement; } } catch (e) { } return false; },  
+ 136053503: () => { return document.hasFocus(); },  
+ 136053535: () => { var target = document; if (target) { target.removeEventListener("pointerup", target.sdlEventHandlerMouseButtonUpGlobal); target.sdlEventHandlerMouseButtonUpGlobal = undefined; } },  
+ 136053717: () => { return document.body.clientWidth; },  
+ 136053755: () => { return document.body.clientHeight; },  
+ 136053794: () => { return window.innerWidth; },  
+ 136053824: () => { return window.innerHeight; },  
+ 136053855: () => { return window.outerWidth; },  
+ 136053885: () => { return window.outerHeight; },  
+ 136053916: () => { return window.pageXOffset; },  
+ 136053947: () => { return window.pageYOffset; },  
+ 136053978: ($0, $1) => { var target = document.querySelector(UTF8ToString($1)); if (target) { var SDL3 = Module['SDL3']; var data = $0; target.sdlEventHandlerPointerEnter = function(event) { var rect = target.getBoundingClientRect(); var d = SDL3.makePointerEventCStruct(rect.left, rect.top, event); if (d != 0) { _Emscripten_HandlePointerEnter(SDL3.JSVarToCPtr(data), d); _SDL_free(d); } }; target.sdlEventHandlerPointerLeave = function(event) { var rect = target.getBoundingClientRect(); var d = SDL3.makePointerEventCStruct(rect.left, rect.top, event); if (d != 0) { _Emscripten_HandlePointerLeave(SDL3.JSVarToCPtr(data), d); _SDL_free(d); } }; target.sdlEventHandlerPointerGeneric = function(event) { var rect = target.getBoundingClientRect(); var d = SDL3.makePointerEventCStruct(rect.left, rect.top, event); if (d != 0) { _Emscripten_HandlePointerGeneric(SDL3.JSVarToCPtr(data), d); _SDL_free(d); } }; target.style.touchAction = "none"; target.addEventListener("pointerenter", target.sdlEventHandlerPointerEnter); target.addEventListener("pointerleave", target.sdlEventHandlerPointerLeave); target.addEventListener("pointercancel", target.sdlEventHandlerPointerLeave); target.addEventListener("pointerdown", target.sdlEventHandlerPointerGeneric); target.addEventListener("pointermove", target.sdlEventHandlerPointerGeneric); target.addEventListener("pointerup", target.sdlEventHandlerPointerGeneric); } },  
+ 136055366: ($0, $1, $2) => { var target = document.querySelector(UTF8ToString($1)); if (target) { var data = $0; var SDL3 = Module['SDL3']; var makeDropEventCStruct = function(event) { var ptr = 0; ptr = _SDL_malloc($2); if (ptr != 0) { var idx = ptr >> 2; var rect = target.getBoundingClientRect(); HEAP32[idx++] = event.clientX - rect.left; HEAP32[idx++] = event.clientY - rect.top; } return ptr; }; SDL3.eventHandlerDropDragover = function(event) { event.preventDefault(); var d = makeDropEventCStruct(event); if (d != 0) { _Emscripten_SendDragEvent(data, d); _SDL_free(d); } }; target.addEventListener("dragover", SDL3.eventHandlerDropDragover); SDL3.drop_count = 0; try { FS.mkdir("/tmp/filedrop"); } catch (e) {} SDL3.eventHandlerDropDrop = function(event) { event.preventDefault(); if (event.dataTransfer.types.includes("text/plain")) { let plain_text = stringToNewUTF8(event.dataTransfer.getData("text/plain")); _Emscripten_SendDragTextEvent(data, plain_text); _Emscripten_force_free(plain_text); } else if (event.dataTransfer.types.includes("Files")) { let files_read = 0; const files_to_read = event.dataTransfer.files.length; for (let i = 0; i < files_to_read; i++) { const file = event.dataTransfer.files.item(i); const file_reader = new FileReader(); file_reader.readAsArrayBuffer(file); file_reader.onload = function(event) { const fs_dropdir = `/tmp/filedrop/${SDL3.drop_count}`; SDL3.drop_count += 1; const fs_filepath = `${fs_dropdir}/${file.name}`; const c_fs_filepath = stringToNewUTF8(fs_filepath); const contents_array8 = new Uint8Array(event.target.result); try { FS.mkdir(fs_dropdir); var stream = FS.open(fs_filepath, "w"); FS.write(stream, contents_array8, 0, contents_array8.length, 0); FS.close(stream); _Emscripten_SendDragFileEvent(data, c_fs_filepath); } catch (e) { } _Emscripten_force_free(c_fs_filepath); onFileRead(); }; file_reader.onerror = function(event) { onFileRead(); }; } function onFileRead() { ++files_read; if (files_read === files_to_read) { _Emscripten_SendDragCompleteEvent(data); } } } _Emscripten_SendDragCompleteEvent(data); }; target.addEventListener("drop", SDL3.eventHandlerDropDrop); SDL3.eventHandlerDropDragend = function(event) { event.preventDefault(); _Emscripten_SendDragCompleteEvent(data); }; target.addEventListener("dragend", SDL3.eventHandlerDropDragend); target.addEventListener("dragleave", SDL3.eventHandlerDropDragend); } },  
+ 136057733: ($0) => { var target = document.querySelector(UTF8ToString($0)); if (target) { var SDL3 = Module['SDL3']; target.removeEventListener("dragleave", SDL3.eventHandlerDropDragend); target.removeEventListener("dragend", SDL3.eventHandlerDropDragend); target.removeEventListener("drop", SDL3.eventHandlerDropDrop); SDL3.drop_count = undefined; function recursive_remove(dirpath) { FS.readdir(dirpath).forEach((filename) => { const p = `${dirpath}/${filename}`; const p_s = FS.stat(p); if (FS.isFile(p_s.mode)) { FS.unlink(p); } else if (FS.isDir(p)) { recursive_remove(p); } }); FS.rmdir(dirpath); }("/tmp/filedrop"); FS.rmdir("/tmp/filedrop"); target.removeEventListener("dragover", SDL3.eventHandlerDropDragover); SDL3.eventHandlerDropDragover = undefined; SDL3.eventHandlerDropDrop = undefined; SDL3.eventHandlerDropDragend = undefined; } },  
+ 136058563: ($0) => { var target = document.querySelector(UTF8ToString($0)); if (target) { target.removeEventListener("pointerenter", target.sdlEventHandlerPointerEnter); target.removeEventListener("pointerleave", target.sdlEventHandlerPointerLeave); target.removeEventListener("pointercancel", target.sdlEventHandlerPointerLeave); target.removeEventListener("pointerdown", target.sdlEventHandlerPointerGeneric); target.removeEventListener("pointermove", target.sdlEventHandlerPointerGeneric); target.removeEventListener("pointerup", target.sdlEventHandlerPointerGeneric); target.style.touchAction = ""; target.sdlEventHandlerPointerEnter = undefined; target.sdlEventHandlerPointerLeave = undefined; target.sdlEventHandlerPointerGeneric = undefined; } },  
+ 136059297: () => { if (!window.matchMedia) { return -1; } if (window.matchMedia('(prefers-color-scheme: light)').matches) { return 0; } if (window.matchMedia('(prefers-color-scheme: dark)').matches) { return 1; } return -1; },  
+ 136059506: () => { if (typeof(Module['SDL3']) !== 'undefined') { var SDL3 = Module['SDL3']; SDL3.themeChangedMatchMedia.removeEventListener('change', SDL3.eventHandlerThemeChanged); SDL3.themeChangedMatchMedia = undefined; SDL3.eventHandlerThemeChanged = undefined; } },  
+ 136059759: () => { return window.innerWidth; },  
+ 136059789: () => { return window.innerHeight; },  
+ 136059820: ($0) => { Module['requestFullscreen'] = function(lockPointer, resizeCanvas) { _requestFullscreenThroughSDL($0); }; },  
+ 136059929: ($0, $1) => { var pngData = HEAPU8.buffer instanceof ArrayBuffer ? HEAPU8.subarray($0, $0 + $1) : HEAPU8.slice($0, $0 + $1); var blob = new Blob([pngData], {type: 'image/png'}); var url = URL.createObjectURL(blob); var link = document.querySelector("link[rel~='icon']"); if (!link) { link = document.createElement('link'); link.rel = 'icon'; link.type = 'image/png'; document.head.appendChild(link); } if (link.href && link.href.startsWith('blob:')) { URL.revokeObjectURL(link.href); } link.href = url; },  
+ 136060422: () => { Module['requestFullscreen'] = function(lockPointer, resizeCanvas) {}; },  
+ 136060496: () => { return window.innerWidth; },  
+ 136060526: () => { return window.innerHeight; },  
+ 136060557: ($0) => { var canvas = document.querySelector(UTF8ToString($0)); canvas.SDL3_original_position = canvas.style.position; canvas.SDL3_original_top = canvas.style.top; canvas.SDL3_original_left = canvas.style.left; var div = document.createElement('div'); div.id = 'SDL3_fill_document_background_elements'; div.SDL3_canvas = canvas; div.SDL3_canvas_parent = canvas.parentNode; div.SDL3_canvas_nextsib = canvas.nextSibling; var children = Array.from(document.body.children); for (var child of children) { div.appendChild(child); } document.body.appendChild(div); div.style.display = 'none'; document.body.appendChild(canvas); canvas.style.position = 'fixed'; canvas.style.top = '0'; canvas.style.left = '0'; },  
+ 136061255: () => { var div = document.getElementById('SDL3_fill_document_background_elements'); if (div) { if (div.SDL3_canvas_nextsib) { div.SDL3_canvas_parent.insertBefore(div.SDL3_canvas, div.SDL3_canvas_nextsib); } else { div.SDL3_canvas_parent.appendChild(div.SDL3_canvas); } while (div.firstChild) { document.body.insertBefore(div.firstChild, div); } div.SDL3_canvas.style.position = div.SDL3_canvas.SDL3_original_position; div.SDL3_canvas.style.top = div.SDL3_canvas.SDL3_original_top; div.SDL3_canvas.style.left = div.SDL3_canvas.SDL3_original_left; div.remove(); } },  
+ 136061814: () => { if (window.matchMedia) { var SDL3 = Module['SDL3']; SDL3.eventHandlerThemeChanged = function(event) { _Emscripten_SendSystemThemeChangedEvent(); }; SDL3.themeChangedMatchMedia = window.matchMedia('(prefers-color-scheme: dark)'); SDL3.themeChangedMatchMedia.addEventListener('change', SDL3.eventHandlerThemeChanged); } },  
+ 136062136: ($0, $1, $2, $3, $4) => { var title = UTF8ToString($0); var message = UTF8ToString($1); var background = UTF8ToString($2); var color = UTF8ToString($3); var id = UTF8ToString($4); var dialog = document.createElement("dialog"); dialog.classList.add("SDL3_messagebox"); dialog.id = id; dialog.style.color = color; dialog.style.backgroundColor = background; document.body.append(dialog); var h1 = document.createElement("h1"); h1.innerText = title; dialog.append(h1); var p = document.createElement("p"); p.innerText = message; dialog.append(p); dialog.showModal(); },  
+ 136062677: ($0, $1, $2, $3, $4, $5, $6, $7) => { var dialog_id = UTF8ToString($0); var text = UTF8ToString($1); var responseId = $2; var clickOnReturn = $3; var clickOnEscape = $4; var border = UTF8ToString($5); var background = UTF8ToString($6); var hovered = UTF8ToString($7); var dialog = document.getElementById(dialog_id); if (!dialog) { return false; } var button = document.createElement("button"); button.innerText = text; button.style.borderColor = border; button.style.backgroundColor = background; dialog.addEventListener('keydown', function(e) { if (clickOnReturn && e.key === "Enter") { e.preventDefault(); button.click(); } else if (clickOnEscape && e.key === "Escape") { e.preventDefault(); button.click(); } }); dialog.addEventListener('cancel', function(e){ e.preventDefault(); }); button.onmouseenter = function(e){ button.style.backgroundColor = hovered; }; button.onmouseleave = function(e){ button.style.backgroundColor = background; }; button.onclick = function(e) { dialog.close(responseId); }; dialog.append(button); return true; },  
+ 136063686: ($0) => { var dialog_id = UTF8ToString($0); var dialog = document.getElementById(dialog_id); if (!dialog) { return false; } return dialog.open; },  
+ 136063824: ($0) => { var dialog_id = UTF8ToString($0); var dialog = document.getElementById(dialog_id); if (!dialog) { return 0; } try { return parseInt(dialog.returnValue); } catch(e) { return 0; } },  
+ 136064006: ($0, $1) => { alert(UTF8ToString($0) + "\n\n" + UTF8ToString($1)); }
 };
 function SDL_GetEmscriptenJoystickVendor(device_index) { let gamepad = navigator['getGamepads']()[device_index]; let vendor_str = 'Vendor: '; if (gamepad['id']['indexOf'](vendor_str) > 0) { let vendor_str_index = gamepad['id']['indexOf'](vendor_str) + vendor_str['length']; return parseInt(gamepad['id']['substr'](vendor_str_index, 4), 16); } let id_split = gamepad['id']['split']('-'); if (id_split['length'] > 1 && !isNaN(parseInt(id_split[0], 16))) { return parseInt(id_split[0], 16); } return 0; }
 function SDL_GetEmscriptenJoystickProduct(device_index) { let gamepad = navigator['getGamepads']()[device_index]; let product_str = 'Product: '; if (gamepad['id']['indexOf'](product_str) > 0) { let product_str_index = gamepad['id']['indexOf'](product_str) + product_str['length']; return parseInt(gamepad['id']['substr'](product_str_index, 4), 16); } let id_split = gamepad['id']['split']('-'); if (id_split['length'] > 1 && !isNaN(parseInt(id_split[1], 16))) { return parseInt(id_split[1], 16); } return 0; }
@@ -11467,6 +11877,8 @@ function assignWasmExports(wasmExports) {
     /** @export */
     emscripten_glFlush: _emscripten_glFlush,
     /** @export */
+    emscripten_glFlushMappedBufferRange: _emscripten_glFlushMappedBufferRange,
+    /** @export */
     emscripten_glFramebufferRenderbuffer: _emscripten_glFramebufferRenderbuffer,
     /** @export */
     emscripten_glFramebufferTexture2D: _emscripten_glFramebufferTexture2D,
@@ -11516,6 +11928,8 @@ function assignWasmExports(wasmExports) {
     emscripten_glGetBufferParameteri64v: _emscripten_glGetBufferParameteri64v,
     /** @export */
     emscripten_glGetBufferParameteriv: _emscripten_glGetBufferParameteriv,
+    /** @export */
+    emscripten_glGetBufferPointerv: _emscripten_glGetBufferPointerv,
     /** @export */
     emscripten_glGetError: _emscripten_glGetError,
     /** @export */
@@ -11640,6 +12054,8 @@ function assignWasmExports(wasmExports) {
     emscripten_glLineWidth: _emscripten_glLineWidth,
     /** @export */
     emscripten_glLinkProgram: _emscripten_glLinkProgram,
+    /** @export */
+    emscripten_glMapBufferRange: _emscripten_glMapBufferRange,
     /** @export */
     emscripten_glPauseTransformFeedback: _emscripten_glPauseTransformFeedback,
     /** @export */
@@ -11786,6 +12202,8 @@ function assignWasmExports(wasmExports) {
     emscripten_glUniformMatrix4x2fv: _emscripten_glUniformMatrix4x2fv,
     /** @export */
     emscripten_glUniformMatrix4x3fv: _emscripten_glUniformMatrix4x3fv,
+    /** @export */
+    emscripten_glUnmapBuffer: _emscripten_glUnmapBuffer,
     /** @export */
     emscripten_glUseProgram: _emscripten_glUseProgram,
     /** @export */
