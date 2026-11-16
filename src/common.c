@@ -1,7 +1,7 @@
 #ifndef COMMON_C
 #define COMMON_C
 
-#include "../lib/cglm-0.9.6/include/cglm/cglm.h"
+#include "../lib/cglm-0.9.6/include/cglm/cglm.h" // could probably prune most of the cglm dependency to just the .c and .h files
 #include <SDL3/SDL_time.h>
 
 // defines

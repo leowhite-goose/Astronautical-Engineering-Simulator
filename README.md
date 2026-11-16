@@ -1,5 +1,5 @@
 # Astronautical-Engineering-Simulator
-![alt text](https://github.com/leowhite-goose/Astronautical-Engineering-Simulator/blob/main/RSS-System-Reduced-Distance.png?raw=true)
+![alt text](https://github.com/leowhite-goose/Astronautical-Engineering-Simulator/blob/main/ISS-Orbit-J2000.png?raw=true)
 ## About
 This is only really on Github so I can host a website demo to show off; this is a heavy work in progress and was basically just started (for fun). The idea is that, while I learn cool engineering stuff during my mechanical engineering undergrad (e.g., thermodynamics), I can use this as a study guide of sorts by implementing what I learn, here.
 

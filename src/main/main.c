@@ -1,3 +1,4 @@
+/* include SDL3 */
 #define SDL_MAIN_USE_CALLBACKS 1 // use the callbacks instead of main()
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -28,6 +29,7 @@
 #include <SDL3/SDL_opengl_glext.h>
 #endif
 
+/* program source code */
 #include "../common.c"
 #include "../global.c" // order matters: this must be included after common.c in order to see its datatypes
 
