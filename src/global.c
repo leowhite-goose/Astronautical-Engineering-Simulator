@@ -5,8 +5,9 @@
 
 static SDL_Window *root_window;
 static SDL_Renderer *root_gui_renderer;
-static SDL_Texture *root_gui_texture;
-GLuint root_gui_gl_texture; // https://stackoverflow.com/questions/11281787/sdl-surface-to-opengl-texture?rq=3
+GLuint root_gui_gl_texture_0; // https://stackoverflow.com/questions/11281787/sdl-surface-to-opengl-texture?rq=3
+GLuint root_gui_gl_texture_1;
+static uint8 root_gui_gl_texture_to_render = 0; // double buffering
 static SDL_Surface *root_gui_surface;
 static SDL_GLContext root_gl_context;
 int root_window_width = 640; // initial main window width
@@ -59,15 +60,17 @@ unsigned int vbo, vao, ebo;
 unsigned int shader_program;
 unsigned int unlit_shader;
 unsigned int tex_shader_program;
+//uint32 frame_vert_cnt;
+char *glsl_version;
 
 double elapsed_simulated_time;
 float dt = 0.001; // 0.001; currently overridden in physics thread
-bool hold_rendering = false;
-int32 mod_body;
 bool queue_render_data = false;
 bool physics_running = false;
 uint128 ns_since_J2000 = 0;
 float timewarp;
 float delta_v_spent;
+uint32 frame_triangle_cnt;
+uint32 frame_skipped_triangle_cnt;
 
 #endif

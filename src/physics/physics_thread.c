@@ -16,7 +16,7 @@ void AES_precise_delay_ns(int64 delay) {
 }
 
 static int SDLCALL physics_loop(void *data) {
-    uint64 target_tick_time_ns = SDL_NS_PER_MS * 1000 * physics_dt; // 1e6 ns = 1ms
+    uint64 target_tick_time_ns = (uint64) SDL_NS_PER_MS * 1000 * physics_dt; // 1e6 ns = 1ms
     uint64 accu = 0;
     uint64 last_tick_update_ns = 0;
     uint64 last_tick_end_ns = 0;
@@ -26,7 +26,7 @@ static int SDLCALL physics_loop(void *data) {
     bool current_buffer;
     while (true) { // while physics/gameticks = needed
         if (!key_toggle(SDL_SCANCODE_P)) {
-        if (SDL_GetTicksNS() >= SDL_NS_PER_SECOND * 3) { // wait 12 seconds before physics-ing
+        if (SDL_GetTicksNS() >= SDL_NS_PER_SECOND * 3) { // wait 3 seconds before physics-ing
             physics_running = true;
             if (key_toggle(SDL_SCANCODE_Z)) {
                 timewarp = 1000;
@@ -46,7 +46,7 @@ static int SDLCALL physics_loop(void *data) {
                 body[i].CM.AABB.y = AABB_.y;
                 body[i].CM.AABB.z = AABB_.z;
             }
-            for (int i = 0; i < 11; i++) {
+            for (int i = 0; i < 12; i++) {
                 for (int j = 0; j < 10; j++) {
                     if (i != j) {
                         vec3i128 pos_displacement = {body[j].CM.t.p.x - body[i].CM.t.p.x, body[j].CM.t.p.y - body[i].CM.t.p.y, body[j].CM.t.p.z - body[i].CM.t.p.z};
@@ -71,10 +71,8 @@ static int SDLCALL physics_loop(void *data) {
                 body[i].CM.t.p.y += body[i].CM.t.v.y * dt * SCALE;
                 body[i].CM.t.p.z += body[i].CM.t.v.z * dt * SCALE;
                 vec3i128 translate = {body[i].CM.t.v.x * dt * SCALE, body[i].CM.t.v.y * dt * SCALE, body[i].CM.t.v.z * dt * SCALE};
-                //hold_rendering = true; mod_body = i;
                 vert128_translate(&body[i].geo.vert_cnt, &body[i].geo.vert128_buffer, translate);
                 //vert128_translate(&body[i].geo.vert_cnt, &body[i].geo.vert128, translate);
-                //hold_rendering = false; mod_body = -1;
                 body[i].CM.t.a.x = 0;
                 body[i].CM.t.a.y = 0;
                 body[i].CM.t.a.z = 0;
@@ -113,9 +111,7 @@ static int SDLCALL physics_loop(void *data) {
             body[10].CM.t.a.z = (float) 9.81 * move_forward * unit_vect.z;
             delta_v_spent += 9.81 * dt * SDL_abs(move_forward);
             if ((rotation_axis.x != 0) || (rotation_axis.y != 0) || (rotation_axis.z != 0)) {
-                mod_body = 10;
                 rotate_128i(body[10].geo.vert_cnt, &body[10].geo.vert128_buffer, body[10].CM.t.p, rotation_axis, angle);
-                mod_body = -1;
             }
 
             if (queue_render_data == true) { // if render thread wants world data
@@ -151,17 +147,18 @@ static int SDLCALL physics_loop(void *data) {
         accu += 1;
         if (elapsed_ns < target_tick_time_ns) {
             //AES_precise_delay_ns(target_tick_time_ns - elapsed_ns);
-            if (target_tick_time_ns - elapsed_ns > SDL_NS_PER_MS*0.10) { // if time to wait is at least 0.1ms
-                SDL_DelayNS(target_tick_time_ns - elapsed_ns - SDL_NS_PER_MS*0.10); // try to regain thread 0.1ms before needed
+            if (target_tick_time_ns - elapsed_ns > SDL_NS_PER_MS*0.065) { // if time to wait is at least 0.065ms; problem: calibrated to my machine
+                SDL_DelayNS(target_tick_time_ns - elapsed_ns - SDL_NS_PER_MS*0.065); // try to regain thread 0.065ms before needed
             } else { // if less than 0.1ms, buzy wait
-                while (elapsed_ns < target_tick_time_ns) {
+                while (elapsed_ns < target_tick_time_ns) { // never runs, idk why
+                    SDL_DelayNS(1e3);
                     tick_end_ns = SDL_GetTicksNS();
                     elapsed_ns = tick_end_ns - last_tick_end_ns;
                 }
             }
         }
         last_tick_end_ns = SDL_GetTicksNS();
-    } else {physics_running = false;}}
+    } else {physics_running = false; SDL_Delay(100);}}
 }
 
 #endif

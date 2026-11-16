@@ -188,7 +188,7 @@ glGenVertexArrays_func glGenVertexArrays = 0;
 typedef void (APIENTRY * glBindVertexArray_func)(GLuint array);
 glBindVertexArray_func glBindVertexArray = 0;
 
-#ifdef SDL_PLATFORM_WIN32
+#ifdef GL
 typedef void (APIENTRY * glGenBuffers_func)(GLsizei n, GLuint * buffers); // https://wiki.libsdl.org/SDL3/SDL_GL_GetProcAddress
 glGenBuffers_func glGenBuffers = 0;
 
@@ -260,9 +260,6 @@ glBufferSubData_func glBufferSubData = 0;
 
 typedef void (APIENTRY * glUniform3f_func)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
 glUniform3f_func glUniform3f = 0;
-
-typedef void (APIENTRY * glActiveTexture_func)(GLenum texture);
-glActiveTexture_func glActiveTexture_ = 0;
 #endif
 
 // structs

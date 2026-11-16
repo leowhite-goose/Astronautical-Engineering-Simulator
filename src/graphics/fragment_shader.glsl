@@ -1,4 +1,4 @@
-#version 300 es
+#version 300 es & 330 core
 out highp vec4 frag_color;
 
 in highp float flogz;

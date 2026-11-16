@@ -30,7 +30,7 @@ void AES_init_opengl() {
     /* Get function pointers for opengl_ext functions */
     glGenVertexArrays = (glGenVertexArrays_func) SDL_GL_GetProcAddress("glGenVertexArrays");
     glBindVertexArray = (glBindVertexArray_func) SDL_GL_GetProcAddress("glBindVertexArray");
-    #ifdef SDL_PLATFORM_WIN32
+    #ifdef GL
     glGenBuffers = (glGenBuffers_func) SDL_GL_GetProcAddress("glGenBuffers");
     glBindBuffer = (glBindBuffer_func) SDL_GL_GetProcAddress("glBindBuffer");
     glBufferData = (glBufferData_func) SDL_GL_GetProcAddress("glBufferData");
@@ -55,32 +55,39 @@ void AES_init_opengl() {
     glUniform4f = (glUniform4f_func) SDL_GL_GetProcAddress("glUniform4f");
     glBufferSubData = (glBufferSubData_func) SDL_GL_GetProcAddress("glBufferSubData");
     glUniform3f = (glUniform3f_func) SDL_GL_GetProcAddress("glUniform3f");
-    glActiveTexture_ = (glActiveTexture_func) SDL_GL_GetProcAddress("glActiveTexture");
     #endif
+
+    glEnable(GL_BLEND); // setting default opengl state
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    //glEnable(GL_FRAMEBUFFER_SRGB);
 }
 
-void AES_generate_shaders() {
+void AES_init_shader_program(char* vertex_shader_rel_path, char* fragment_shader_rel_path, GLuint *program_shader_out) {
     int success;
     char info_log[512];
 
     char *vertex_shader_src;
     char *fragment_shader_src;
 
-    char vertex_shader_rel_path[] = "src/graphics/vertex_shader.glsl";
     char *vertex_path = NULL;
     SDL_asprintf(&vertex_path, "%s" "%s", SDL_GetBasePath(), vertex_shader_rel_path);
     vertex_shader_src = SDL_LoadFile(vertex_path, NULL);
+    memcpy(&vertex_shader_src[0], glsl_version, 26);
 
-    char fragment_shader_rel_path[] = "src/graphics/fragment_shader.glsl";
     char *fragment_path = NULL;
     SDL_asprintf(&fragment_path, "%s" "%s", SDL_GetBasePath(), fragment_shader_rel_path);
     fragment_shader_src = SDL_LoadFile(fragment_path, NULL);
+    memcpy(&fragment_shader_src[0], glsl_version, 26);
 
     unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     const char *vertex_shader_source = vertex_shader_src;
     //SDL_Log("%s", vertex_shader_src);
     glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
     glCompileShader(vertex_shader);
+    SDL_free(vertex_shader_src);
     glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
@@ -90,8 +97,10 @@ void AES_generate_shaders() {
 
     unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     const char *fragment_shader_source = fragment_shader_src;
+    //SDL_Log("%s", fragment_shader_src);
     glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
     glCompileShader(fragment_shader);
+    SDL_free(fragment_shader_src);
     glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
@@ -112,61 +121,7 @@ void AES_generate_shaders() {
         glGetProgramInfoLog(shader_program, 512, NULL, info_log);
         SDL_Log("Shader Program Error: %s", info_log);
     }
-}
-
-void AES_generate_unlit_shaders() {
-    int success;
-    char info_log[512];
-
-    char *vertex_shader_src;
-    char *fragment_shader_src;
-
-    char vertex_shader_rel_path[] = "src/graphics/vertex_shader.glsl";
-    char *vertex_path = NULL;
-    SDL_asprintf(&vertex_path, "%s" "%s", SDL_GetBasePath(), vertex_shader_rel_path);
-    vertex_shader_src = SDL_LoadFile(vertex_path, NULL);
-
-    char fragment_shader_rel_path[] = "src/graphics/non_lit_fragment_shader.glsl";
-    char *fragment_path = NULL;
-    SDL_asprintf(&fragment_path, "%s" "%s", SDL_GetBasePath(), fragment_shader_rel_path);
-    fragment_shader_src = SDL_LoadFile(fragment_path, NULL);
-
-    unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    const char *vertex_shader_source = vertex_shader_src;
-    //SDL_Log("%s", vertex_shader_src);
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
-    glCompileShader(vertex_shader);
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
-        SDL_Log("Vertex Shader Error: %s", info_log);
-    }
-
-    unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    const char *fragment_shader_source = fragment_shader_src;
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
-    glCompileShader(fragment_shader);
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
-        SDL_Log("Fragment Shader Error: %s", info_log);
-    }
-
-    unlit_shader = glCreateProgram();
-    glAttachShader(unlit_shader, vertex_shader);
-    glAttachShader(unlit_shader, fragment_shader);
-    glLinkProgram(unlit_shader);
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    glGetProgramiv(unlit_shader, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(unlit_shader, 512, NULL, info_log);
-        SDL_Log("Shader Program Error: %s", info_log);
-    }
+    (*program_shader_out) = shader_program;
 }
 
 void AES_generate_tex_shaders() {
@@ -180,11 +135,13 @@ void AES_generate_tex_shaders() {
     char *vertex_path = NULL;
     SDL_asprintf(&vertex_path, "%s" "%s", SDL_GetBasePath(), vertex_shader_rel_path);
     vertex_shader_src = SDL_LoadFile(vertex_path, NULL);
+    memcpy(&vertex_shader_src[0], glsl_version, 26);
 
     char fragment_shader_rel_path[] = "src/graphics/gui_fragment_shader.glsl";
     char *fragment_path = NULL;
     SDL_asprintf(&fragment_path, "%s" "%s", SDL_GetBasePath(), fragment_shader_rel_path);
     fragment_shader_src = SDL_LoadFile(fragment_path, NULL);
+    memcpy(&fragment_shader_src[0], glsl_version, 26);
 
     unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     const char *vertex_shader_source = vertex_shader_src;
@@ -253,12 +210,7 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
     //SDL_Log("HYIj - %.3f", (float) (*vert128)[6].x);
     vec32i3i128 *vert128local = (vec32i3i128 *) SDL_malloc(sizeof(vec32i3i128) * vertex_count);
     for (int i = 0; i < vertex_count; i++) {
-        if (!hold_rendering) { // so physics' intermediate steps aren't loaded in, here
-            vert128local[i] = (*vert128)[i]; // so that this doesn't modify data physics engine is using
-        } else {
-            SDL_DelayNS(0);
-            i -= 1;
-        }
+        vert128local[i] = (*vert128)[i]; // so that this doesn't modify data physics engine is using
     }
     vec3i128 translate;
     translate.x = -cam.x;
@@ -281,9 +233,35 @@ void render_triangles(uint32 vertex_count, uint32 triangle_count, vec32i3f **ver
             int32 size = sizeof(float) * 30;
             int32 size_offset = sizeof(float) * (30 * (i - (*skipped_cnt)));
             glBufferSubData(GL_ARRAY_BUFFER, size_offset, size, &temp_vertex_data[0]); // glMapBuffer
+
+            uint32 temp_index_data[3] = {
+                // has to be the same order as was put into glBuffer above
+            };
+            int32 index_size = sizeof(uint32) * 3;
+            int32 index_offset = sizeof(uint32) * (3 * (i - (*skipped_cnt)));
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, index_offset, index_size, &temp_index_data[0]);
+            //frame_vert_cnt += 3;
         } else {
             (*skipped_cnt)++;
         }
+        /*float temp_vertex_data[30] = {
+            (*vertf)[(*triangles)[i].x].x, (*vertf)[(*triangles)[i].x].y, (*vertf)[(*triangles)[i].x].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v0
+            (*vertf)[(*triangles)[i].y].x, (*vertf)[(*triangles)[i].y].y, (*vertf)[(*triangles)[i].y].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z, // v1
+            (*vertf)[(*triangles)[i].z].x, (*vertf)[(*triangles)[i].z].y, (*vertf)[(*triangles)[i].z].z, color.w, color.x, color.y, color.z, normal.x, normal.y, normal.z  // v2
+        };
+        int32 size = sizeof(float) * 30;
+        int32 size_offset = sizeof(float) * (30 * (i - (0)));
+        glBufferSubData(GL_ARRAY_BUFFER, size_offset, size, &temp_vertex_data[0]); // glMapBuffer
+
+        uint32 temp_index_data[3] = {
+            3*i+0,
+            3*i+1,
+            3*i+2
+        };
+        int32 index_size = sizeof(uint32) * 3;
+        int32 index_offset = sizeof(uint32) * (3 * (i - (0)));
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, index_offset, index_size, &temp_index_data[0]);*/
+
     }
     if (bounding_box) {
         vec32i3i128 AA_BB[2] = {{0, AABB.a, AABB.b, AABB.c}, {1, AABB.x, AABB.y, AABB.z}};
@@ -324,7 +302,7 @@ void render_tetrahedra(vec32i3f **nodes, vec5i32 **cells, vec32i3i128 **vert128,
     translate.y = cam.y;
     translate.z = cam.z;
     vert128_translate(&vertex_count, vert128, translate);
-    if (!debug) {glEnable(GL_CULL_FACE); glCullFace(GL_BACK);}
+    //if (!debug) {glEnable(GL_CULL_FACE); glCullFace(GL_BACK);}
     for (int i = 0; i < cell_count; i++) {
         vec3f normal0 = generate_normal((*nodes)[(*cells)[i].b], (*nodes)[(*cells)[i].x], (*nodes)[(*cells)[i].y]);
         vec3f normal1 = generate_normal((*nodes)[(*cells)[i].z], (*nodes)[(*cells)[i].y], (*nodes)[(*cells)[i].x]); // flipped
@@ -428,20 +406,13 @@ void render_body(int32 id, vec4f color, bool is_lit, bool bounding_box, bool occ
     //glUniform3f(light_pos_loc, 0, 0, 0);
     glUniform3f(light_pos_loc, (float) body[0].CM_prev.t.p.x - root_cam.x, (float) body[0].CM_prev.t.p.y - root_cam.y, (float) body[0].CM_prev.t.p.z - root_cam.z);
 
-    //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    //glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+    //glDrawElements(GL_TRIANGLES, body[id].geo.tetra_cnt * 4 - skipped_cnt, GL_UNSIGNED_INT, 0);
     glDrawArrays(GL_TRIANGLES, 0, body[id].geo.tetra_cnt*12 - skipped_cnt*3);
     if (bounding_box == true) {
         glUseProgram(unlit_shader);
         glDrawArrays(GL_LINES, body[id].geo.tetra_cnt*12 - skipped_cnt*3, 6);
     }
-    glDisable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
     glUseProgram(0);
 }
 
@@ -457,7 +428,7 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     vec4f color8 = {0.5,0.6,0.8,1.0};
     vec4f color9 = {0.5,0.6,0.9,1.0};
     vec4f color10 = {0.6,0.6,0.6,1.0};
-    vec4f color11 = {0.6,0.6,0.6,1.0};
+    vec4f color11 = {0.2,0.2,0.6,0.8};
     render_body(0,color0,0,0,0);
     render_body(1,color1,1,0,0);
     render_body(2,color2,1,0,0);
@@ -469,7 +440,7 @@ void render3D(float window_width, float window_height, vec3f3i128 cam) {
     render_body(8,color8,1,0,0);
     render_body(9,color9,1,0,0);
     render_body(10,color10,1,0,0);
-    //render_body(11,color11,1,0,0);
+    render_body(11,color11,1,0,0);
 }
 
 #endif

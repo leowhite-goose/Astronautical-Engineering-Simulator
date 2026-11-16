@@ -1,4 +1,4 @@
-#version 300 es
+#version 300 es & 330 core
 out mediump vec4 frag_color;
 
 in mediump vec2 tex_coord;

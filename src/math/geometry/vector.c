@@ -71,7 +71,7 @@ vec3d vector_subtract3d(vec3d vect1, vec3d vect2) {
     return vect0;
 }
 
-vec3f vector_scale3f(vec3f vect1, float scale) {
+vec3f vector_scale3f(vec3f vect1, float scale) { // switch order*
     vec3f vect0;
     vect1.x = vect1.x * scale;
     vect1.y = vect1.y * scale;

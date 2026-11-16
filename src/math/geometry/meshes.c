@@ -66,6 +66,7 @@ void load_fenics_mesh(char *rel_file_path, int32 *out_vertex_count, int32 *out_t
                 number_string[digit_count] = '\0';
                 digit_count = 0;
                 tetrahedron_count = SDL_atoi(number_string);
+                SDL_Log("Tetrahedra Count : %" SDL_PRIu32, tetrahedron_count);
                 *tetrahedra = (vec5i32 *) SDL_malloc(sizeof(vec5i32) * tetrahedron_count);
                 *triangles = (vec4i32 *) SDL_malloc(sizeof(vec4i32) * tetrahedron_count * 4);
             }
@@ -411,90 +412,36 @@ void remove_shared_faces (int32 triangle_count, vec4i32 **triangles) {
         SDL_qsort(i_arr, 3, sizeof(i_arr[0]), comp32i);
         triangle_ids[i] = (uint128) ((int128) di) + ((int128) i_arr[0])*((int128) 1<<32) + ((int128) i_arr[1])*((int128) 1<<64) + ((int128) i_arr[2])*((int128) 1<<96);
     }
-    /*char bufferg[129];
-    i128_to_binary_string((int128) (*triangles)[63].x, bufferg);
-    SDL_Log("X I : %s", bufferg);
-    i128_to_binary_string((int128) (*triangles)[63].y, bufferg);
-    SDL_Log("Y I : %s", bufferg);
-    i128_to_binary_string((int128) (*triangles)[63].z, bufferg);
-    SDL_Log("Z I : %s", bufferg);
-    i128_to_binary_string((int128) (*triangles)[63].w, bufferg);
-    SDL_Log("W I : %s", bufferg);
-    i128_to_binary_string((int128) triangle_ids[63], bufferg);
-    SDL_Log("HMM I : %s", bufferg);*/
 
     SDL_qsort(triangle_ids, triangle_count, sizeof(triangle_ids[0]), comp128ui); // x y z w (largest to smallest)
-    int32 ch = 0;
-    while (ch < triangle_count - 1) {
-        uint32 *id_1 = (uint32*) (triangle_ids + (ch)); // smallest value = .w^(above)
-        uint32 *id_2 = (uint32*) (triangle_ids + (ch + 1));
-        uint128 triangle_1 = triangle_ids[ch];// (*id_1);
-        uint128 triangle_2 = triangle_ids[ch+1];
-        bool *mod1 = (bool*) &triangle_1;
-        bool *mod2 = (bool*) &triangle_2;
-        for (int i = 0; i < sizeof(uint32); i++) { // clear index value from triangle id's
-            *(mod1 + i) = 0;
-            *(mod2 + i) = 0;
+    int32 i = 0;
+    while (i < triangle_count - 1) {
+        uint32 id_1, id_2;
+        SDL_memcpy(&id_1, &triangle_ids[i], sizeof(uint32)); // smallest value = .w^(above)
+        SDL_memcpy(&id_2, &triangle_ids[i+1], sizeof(uint32)); // note : use memcpy rather than angering -fstrict-aliasing (w/ -O{level over 1})
+        uint128 triangle_1 = triangle_ids[i];// (*id_1);
+        uint128 triangle_2 = triangle_ids[i+1];
+
+        bool identical_triangles = true;
+        uint32 tri1[4], tri2[4];
+        SDL_memcpy(tri1, &triangle_1, sizeof(uint128)); // smallest value = .w^(above)
+        SDL_memcpy(tri2, &triangle_2, sizeof(uint128));
+        for (int j = 1; j < 4; j++) {
+            if (tri1[j] != tri2[j]) {
+                identical_triangles = false;
+            }
         }
-        /*if ((*id_1) == 63) {
-            i128_to_binary_string((int128) triangle_1, bufferg);
-            SDL_Log("11111 : %s", bufferg);
-            i128_to_binary_string((int128) triangle_2, bufferg);
-            SDL_Log("77777 : %s", bufferg);
-        }
-        if ((*id_2 == 63)) {
-            i128_to_binary_string((int128) triangle_2, bufferg);
-            SDL_Log("22222 : %s", bufferg);
-            i128_to_binary_string((int128) triangle_1, bufferg);
-            SDL_Log("88888 : %s", bufferg);
-        }*/
-        /*SDL_Log("id1 # : %d", (*id_1));
-        SDL_Log("id2 # : %d", (*id_2));
-        char buffer1[129];
-        char buffer2[129];
-        i128_to_binary_string((int128) triangle_1, buffer1);
-        //i128_to_binary_string((int128) triangle_id_1 * ((int128) 2<<32), buffer2);
-        i128_to_binary_string((int128) triangle_2, buffer2);
-        SDL_Log("ye I : %s", buffer1);
-        SDL_Log("no i : %s", buffer2);
-        SDL_Log("");*/
-        if (triangle_1 == triangle_2) {
-            (*triangles)[(*id_1)].w = -(*triangles)[(*id_1)].w - 1;
-            (*triangles)[(*id_2)].w = -(*triangles)[(*id_2)].w - 1;
-            ch += 2;
+        if (identical_triangles) {
+            (*triangles)[(id_1)].w = -(id_1) - 1; // -1 so that 0 doesn't map to 0; also reverable
+            (*triangles)[(id_2)].w = -(id_2) - 1;
+            i += 2;
         } else {
-            ch += 1;
+            i += 1;
         }
     }
-    /*for (int i = 0; i < triangle_count; i++) {
-        int32 ai = (*triangles)[i].x;
-        int32 bi = (*triangles)[i].y;
-        int32 ci = (*triangles)[i].z;
-        int32 i_arr[3] = {ai, bi, ci};
-        SDL_qsort(i_arr, 3, sizeof(i_arr[0]), comp32i);
-        int128 triangle_id_i = (int128) ((int128) i_arr[0]) + ((int128) i_arr[1])*((int128) 1<<32) + ((int128) i_arr[2])*((int128) 1<<64);
-        int128 triangle_id_i_rm = -triangle_id_i - 1;
-        /*for (int j = 0; j < triangle_count; j++) { //(O(n^yikes))
-            if (j != i) {
-                int32 aj = (*triangles)[j].x;
-                int32 bj = (*triangles)[j].y;
-                int32 cj = (*triangles)[j].z;
-                int32 j_arr[3] = {aj, bj, cj};
-                SDL_qsort(j_arr, 3, sizeof(j_arr[0]), comp32i);
-                int128 triangle_id_j = (int128) ((int128) j_arr[0]) + ((int128) j_arr[1])*((int128) 1<<32) + ((int128) j_arr[2])*((int128) 1<<64);
-                if (((*triangles)[i].w >= 0) && (triangle_id_i == triangle_id_j)) {
-                    (*triangles)[i].w = -(*triangles)[i].w - 1;
-                }
-                /*if (triangle_ids[j] == triangle_id_i_rm) {
-                    (*triangles)[i].w = -(*triangles)[i].w - 1;
-                }*/
-            /*}
-        }
-    }*/
 }
 
 void rotate_128i(int32 vertex_count, vec32i3i128 **vert128, vec3i128 CoR, vec3f rotation_axis, float angle) {
-    hold_rendering = true;
     for (int i = 0; i < vertex_count; i++) {
         (*vert128)[i].x = (*vert128)[i].x - CoR.x;
         (*vert128)[i].y = (*vert128)[i].y - CoR.y;
@@ -527,7 +474,6 @@ void rotate_128i(int32 vertex_count, vec32i3i128 **vert128, vec3i128 CoR, vec3f 
         (*vert128)[i].y = (*vert128)[i].y + CoR.y;
         (*vert128)[i].z = (*vert128)[i].z + CoR.z;
     }
-    hold_rendering = false;
     return;
 }
 

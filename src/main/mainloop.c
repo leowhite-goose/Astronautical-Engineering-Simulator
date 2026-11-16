@@ -9,12 +9,17 @@ SDL_AppResult AES_mainloop() {
     #endif
     // updating global variables;
     SDL_GetWindowSizeInPixels(root_window, &root_window_width, &root_window_height);
-    if ((SDL_max(root_window_width, root_window_height) > gui_texture_res) || (SDL_max(root_window_width, root_window_height) * 2 < gui_texture_res)) {
+    if ((SDL_max(root_window_width, root_window_height) > gui_texture_res) || (SDL_max(root_window_width, root_window_height) * 2 < gui_texture_res)) { // if significant window rescaling
         gui_texture_res = power_of_two(SDL_max(root_window_width, root_window_height)); // account for max supported resolution, like with webgl for browsers
         SDL_DestroySurface(root_gui_surface);
         root_gui_surface =  SDL_CreateSurface(gui_texture_res, gui_texture_res, SDL_PIXELFORMAT_ABGR8888);
         SDL_DestroyRenderer(root_gui_renderer);
         root_gui_renderer = SDL_CreateSoftwareRenderer(root_gui_surface);
+        glBindTexture(GL_TEXTURE_2D, root_gui_gl_texture_0);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Use blurry texture mapping (replace GL_LINEAR with GL_NEAREST for blocky)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, root_gui_surface->w, root_gui_surface->h, 0,  GL_RGBA, GL_UNSIGNED_BYTE, (void *)NULL);
+        glBindTexture(GL_TEXTURE_2D, 0);
         //SDL_Log("GUI res:%" SDL_PRIu32, gui_texture_res);
     }
     int64 start_time = SDL_GetTicksNS();
@@ -262,7 +267,7 @@ SDL_AppResult AES_mainloop() {
     // 3D rendering
     queue_render_data = true;
     while (queue_render_data == true && physics_running == true) {
-        SDL_Delay(1);
+        SDL_DelayNS(1000);
     }
     queue_render_data = false; // should physics not be running/processing
     bool move_to_body_10 = key_down(SDL_SCANCODE_0);
@@ -277,8 +282,9 @@ SDL_AppResult AES_mainloop() {
          *   root_cam.y += body[3].CM.t.v.y * SCALE;
          *   root_cam.z += body[3].CM.t.v.z * SCALE;*/
     }
-    glViewport(0, 0, root_window_width, root_window_height);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    //glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName); // (to allow for % resolution scale) https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-14-render-to-texture/
+    glViewport(0, 0, root_window_width, root_window_height); // only invoke if window size changed --> would save ~250us / frame
+    //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     render3D(root_window_width, root_window_height, root_cam);
 
@@ -286,6 +292,12 @@ SDL_AppResult AES_mainloop() {
     if (!key_toggle(SDL_SCANCODE_G)) {
         onscreen_overlay(cam_speed, pan_sensitivity, last_fps, last_tps, root_window_width, root_window_height);
     }
+    /*static int cnt2 = 0;
+    cnt2 ++;
+    if (cnt2 == 100) {
+        SDL_Log("FPS : %d", last_fps);
+        cnt2 = 0;
+    }*/
 
     glFlush(); // note
     SDL_GL_SwapWindow(root_window);
@@ -294,10 +306,12 @@ SDL_AppResult AES_mainloop() {
     mouse.moving = false;
     mouse.scrolling = false;
 
-    int jk = 1;
-    SDL_Log("Elapsed Sim Time : %.3lf", elapsed_simulated_time);
-    SDL_Log("Mercury Position : X = %.0lf Y = %.0lf Z = %.0lf", (double) body[jk].CM.t.p.x / (SCALE*1e3), (double) body[jk].CM.t.p.y / (SCALE*1e3), (double) body[jk].CM.t.p.z / (SCALE*1e3));
-    SDL_Log("Mercury Velocity : X = %.3lf Y = %.3lf Z = %.3lf", (double) body[jk].CM.t.v.x / (1e3), (double) body[jk].CM.t.v.y / (1e3), (double) body[jk].CM.t.v.z / (1e3));
+    if (key_toggle(SDL_SCANCODE_J)) {
+        int jk = 1;
+        SDL_Log("Elapsed Sim Time : %.3lf", elapsed_simulated_time);
+        SDL_Log("Mercury Position : X = %.0lf Y = %.0lf Z = %.0lf", (double) body[jk].CM.t.p.x / (SCALE*1e3), (double) body[jk].CM.t.p.y / (SCALE*1e3), (double) body[jk].CM.t.p.z / (SCALE*1e3));
+        SDL_Log("Mercury Velocity : X = %.3lf Y = %.3lf Z = %.3lf", (double) body[jk].CM.t.v.x / (1e3), (double) body[jk].CM.t.v.y / (1e3), (double) body[jk].CM.t.v.z / (1e3));
+    }
 
     // FPS
     static uint64 accu = 0;

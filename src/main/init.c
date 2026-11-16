@@ -3,7 +3,7 @@
 
 SDL_AppResult AES_init() {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
-    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.21", "SDL3-Project");
+    SDL_SetAppMetadata("Astronautical Engineering Simulator", "0.0.22", "SDL3-Project");
 
     // init SDL
     SDL_Init(SDL_INIT_VIDEO); // https://wiki.libsdl.org/SDL3/SDL_Init
@@ -14,10 +14,21 @@ SDL_AppResult AES_init() {
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1); // https://wiki.libsdl.org/SDL3/SDL_GLAttr
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    #ifndef SDL_PLATFORM_WIN32
+    #ifdef GLES
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0); // I'd like to use 3.1/3.2, but WebGL (emscripten port) only goes to 3.0 :/
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES); // https://wiki.libsdl.org/SDL3/SDL_GLProfile
+    glsl_version = (char*) SDL_malloc(sizeof(char) * 26);
+    char version[] = "#version 300 es           ";
+    memcpy(&glsl_version[0], &version[0], 26);
+    #endif
+    #ifdef GL
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); // https://wiki.libsdl.org/SDL3/SDL_GLProfile
+    glsl_version = (char*) SDL_malloc(sizeof(char) * 26);
+    char version[] = "#version 330 core         ";
+    memcpy(&glsl_version[0], &version[0], 26);
     #endif
     root_window = SDL_CreateWindow("AES - Main Window", root_window_width, root_window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (!root_window) {
@@ -40,10 +51,16 @@ SDL_AppResult AES_init() {
     SDL_Surface *window_icon_surface = SDL_LoadPNG(icon_path);
 
     gui_texture_res = power_of_two(SDL_max(root_window_width, root_window_height));
-    root_gui_surface =  SDL_CreateSurface(gui_texture_res, gui_texture_res, SDL_PIXELFORMAT_ABGR8888);
+    root_gui_surface = SDL_CreateSurface(gui_texture_res, gui_texture_res, SDL_PIXELFORMAT_ABGR8888);
+    glGenTextures(1, &root_gui_gl_texture_0); // needed for emscripten
+    glGenTextures(1, &root_gui_gl_texture_1);
+    glBindTexture(GL_TEXTURE_2D, root_gui_gl_texture_0);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Use blurry texture mapping (replace GL_LINEAR with GL_NEAREST for blocky)
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, root_gui_surface->w, root_gui_surface->h, 0,  GL_RGBA, GL_UNSIGNED_BYTE, root_gui_surface->pixels);
+    glBindTexture(GL_TEXTURE_2D, 0);
     root_gui_renderer = SDL_CreateSoftwareRenderer(root_gui_surface);
-    SDL_SetRenderVSync(root_gui_renderer, 0);
-    glGenTextures(1, &root_gui_gl_texture);
+    //SDL_SetRenderVSync(root_gui_renderer, 0);
 
     if (!window_icon_surface) {
         SDL_Log("Couldn't set window icon: %s", SDL_GetError());
@@ -52,12 +69,19 @@ SDL_AppResult AES_init() {
     SDL_SetWindowIcon(root_window, window_icon_surface);
     SDL_DestroySurface(window_icon_surface);
 
+    // initializating shader programs
+    char tex_vertex_source_rel_path[] = "src/graphics/gui_vertex_shader.glsl";
+    char tex_fragment_source_rel_path[] = "src/graphics/gui_fragment_shader.glsl";
+    AES_init_shader_program(tex_vertex_source_rel_path, tex_fragment_source_rel_path, &tex_shader_program); // for some reason, lit shader program doesn't work right if this isn't first
 
-    AES_generate_unlit_shaders();
-    AES_generate_shaders();
-    AES_generate_tex_shaders();
+    char vertex_source_rel_path[] = "src/graphics/vertex_shader.glsl";
+    char unlit_fragment_source_rel_path[] = "src/graphics/non_lit_fragment_shader.glsl";
+    AES_init_shader_program(vertex_source_rel_path, unlit_fragment_source_rel_path, &unlit_shader);
 
+    char lit_fragment_source_rel_path[] = "src/graphics/fragment_shader.glsl";
+    AES_init_shader_program(vertex_source_rel_path, lit_fragment_source_rel_path, &shader_program);
 
+    // loading model data
     char model_file_ENT_H[] = "meshes/TOS-Enterprise-G14.xml"; //"meshes/MeshTest-FEMMeshNetgen001.xml"//"meshes/20mm-Cube-4.xml"//"meshes/TOS-rip-FEMMeshGmsh002.xml"//"meshes/TOS-
     char model_file_ENT_L[] = "meshes/TOS-rip-FEMMeshGmsh002.xml";
     char sphere_diameter1[] = "meshes/Sphere_Diameter=1_Low.xml"; // use for stars, planets, etc.
@@ -201,10 +225,12 @@ SDL_AppResult AES_init() {
         vert128_translate(&body[10].geo.vert_cnt, &body[10].geo.vert128, translate);
         body[10].CM.trajectory = (vec3i128*) SDL_malloc(sizeof(vec3i128) * 128);
 
-        translate.x = 200*SCALE; translate.y = 0; translate.z = 0;
+        translate.x = (-2.62764143098823e10 - 100) * SCALE, translate.y = 1.445057839083436e11 * SCALE, translate.z = 3.462988835807145e7 * SCALE;
+        body[11].CM.t.v.x = -2.601427552331036e4; body[11].CM.t.v.y = 4.918605296500530e2; body[11].CM.t.v.z = 3.461249988666562e3;
+        body[11].CM.m = 1000e6;
         vertd_i_to_vert128_scaled(&body[11].geo.vert_cnt, &body[11].geo.vertd, &body[11].geo.vert128, SCALE);
-        vert128_translate(&body[11].geo.vert_cnt, &body[11].geo.vert128, translate);
         body[11].CM.t.p.x = translate.x; body[11].CM.t.p.y = translate.y; body[11].CM.t.p.z = translate.z;
+        vert128_translate(&body[11].geo.vert_cnt, &body[11].geo.vert128, translate);
 
         for (int j = 0; j < 12; j++) {
             remove_shared_faces(body[j].geo.tri_cnt, &body[j].geo.tri);
@@ -220,6 +246,8 @@ SDL_AppResult AES_init() {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 30 * 131072, NULL, GL_STREAM_DRAW); // up to 131072 triangles per drawcall = 3,932,160 bytes
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 30 * 131072, NULL, GL_STREAM_DRAW);
 
     // setting up physics thread/loop
     physics_thread = SDL_CreateThread(physics_loop, "PhysicsThread", (void *)NULL);

@@ -2,20 +2,30 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
+/* platform setting */
+#if defined(SDL_PLATFORM_EMSCRIPTEN) // will probably depreciate so as to be able to use gles 3.1/3.2
+#include <emscripten.h> // optional?
+#define GLES
+
+#elif defined(SDL_PLATFORM_WIN32)
+#include <windows.h> // optional?
+#define GL
+
+#elif defined(SDL_PLATFORM_ANDROID) // no actual port
+#define GLES
+
+#else // assumes generic desktop platform
+#define GL
 #endif
 
-#ifdef SDL_PLATFORM_WIN32
-#include <windows.h>
-#include <SDL3/SDL_opengl.h>
-#include <SDL3/SDL_opengl_glext.h>
-#endif
-
-#ifndef SDL_PLATFORM_WIN32
+/* graphics API setting */
+#ifdef GLES
 #include <SDL3/SDL_opengles2.h>
 #include <SDL3/SDL_opengles2_gl2ext.h>
-//#include <SDL3/SDL_egl.h>
+#endif
+#ifdef GL
+#include <SDL3/SDL_opengl.h>
+#include <SDL3/SDL_opengl_glext.h>
 #endif
 
 #include "../common.c"
@@ -32,7 +42,7 @@
 //#include "../physics/collision.c"
 //#include "../physics/thermodynamics.c"
 //#include "../physics/materials.c"
-//#include "../physics/electromagnetism.c"
+#include "../physics/electromagnetism.c"
 
 #include "../main/events.c"
 #include "../physics/physics_thread.c"
